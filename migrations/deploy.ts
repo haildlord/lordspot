@@ -110,16 +110,16 @@ module.exports = async function (provider: anchor.AnchorProvider) {
 // anchor deploy --provider.cluster https://solana-devnet.g.alchemy.com/v2/nbTtI0XS4ZCs4VoxN_ITW
 // .so file deployed : 2Nkn4hstSnThpE2j1SbNwff7ZgRcevzwGb8UdvZ2r6Hc6VyCYzYyw3z9ed8HSdyh9M9qYNYXHSpTGYMAX1YXT6gu
 
-// anchor migrate --provider.cluster "https://devnet.helius-rpc.com/?api-key=311a52e8-93ed-49e4-b0c5-acfb3060e402"
+// anchor migrate --provider.cluster "https://devnet.helius-rpc.com/?api-key="
 // init or deploy.ts sig :
 
-// anchor idl init --filepath target/idl/lords_pot.json --provider.cluster "https://devnet.helius-rpc.com/?api-key=311a52e8-93ed-49e4-b0c5-acfb3060e402" 7eBJpDhqrtdEyBnrHwNb6QEbJ4YQxz9k2KacKH6oe9W6
+// anchor idl init --filepath target/idl/lords_pot.json --provider.cluster "https://devnet.helius-rpc.com/?api-key=" 7eBJpDhqrtdEyBnrHwNb6QEbJ4YQxz9k2KacKH6oe9W6
 // Idl data length: 719 bytes
 // Step 0/719
 // Step 600/719
 // Idl account created: BcUuVvTAuDQonbE8PDWCaNWomxCJnK9vg7MhsNQx98MP
 
-// solana account 5CQmLHNx2PkeeRKCj1qDGJhhFnTxXAcCrhXmdRnq9fiY --url "https://devnet.helius-rpc.com/?api-key=311a52e8-93ed-49e4-b0c5-acfb3060e402"
+// solana account 5CQmLHNx2PkeeRKCj1qDGJhhFnTxXAcCrhXmdRnq9fiY --url "https://devnet.helius-rpc.com/?api-key="
 
 
-// anchor test --skip-local-validator --skip-deploy --provider.cluster "https://devnet.helius-rpc.com/?api-key=311a52e8-93ed-49e4-b0c5-acfb3060e402"
+// anchor test --skip-local-validator --skip-deploy --provider.cluster "https://devnet.helius-rpc.com/?api-key="

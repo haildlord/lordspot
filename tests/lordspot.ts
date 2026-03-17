@@ -248,8 +248,8 @@ describe("lordspot", () => {
 });
 
 
-// anchor test --skip-local-validator --skip-deploy --provider.cluster "https://devnet.helius-rpc.com/?api-key=311a52e8-93ed-49e4-b0c5-acfb3060e402"
-// hail_the_lord@j lordspot % anchor test --skip-local-validator --skip-deploy --provider.cluster "https://devnet.helius-rpc.com/?api-key=311a52e8-93ed-49e4-b0c5-acfb3060e402"
+// anchor test --skip-local-validator --skip-deploy --provider.cluster "https://devnet.helius-rpc.com/?api-key="
+// hail_the_lord@j lordspot % anchor test --skip-local-validator --skip-deploy --provider.cluster "https://devnet.helius-rpc.com/?api-key="
 // Finished `release` profile [optimized] target(s) in 0.34s
 // Finished `test` profile [unoptimized + debuginfo] target(s) in 0.45s
 // Running unittests src/lib.rs (/Users/hail_the_lord/code/project/lordspot/target/debug/deps/lordspot-2113b9478aa8fc30)
