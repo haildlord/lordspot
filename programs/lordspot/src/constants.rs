@@ -1,0 +1,1 @@
+pub const ADMIN_PUBKEY : &str = "H8Q7CUvPigtSxfd13TKRuFrwdJtc6pJu9BMNhbXF9yAY";
