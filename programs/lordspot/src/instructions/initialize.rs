@@ -1,17 +1,42 @@
 use anchor_lang::prelude::*;
-use crate::constants::ADMIN_PUBKEY;
-use crate::state::GlobalState;
-use crate::error::ErrorCode;
+use crate::constants::{ADMIN_PUBKEY, SEED_PER_EPOCH, SEED_GLOBAL, PRECISE_UNIT, SEED_LP_DRAWING_STATE, SEED_PROTOCOL_USDC_ACCOUNT, USDC_DEVNET_ADDRESS};
+use crate::state::{PerEpochState, GlobalState, EpochIdToLPDrawingState};
+use crate::error::LordspotError;
+use crate::utility::main;
+use anchor_spl::associated_token::AssociatedToken;
+use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
-pub fn handler(ctx: Context<Initialize>, rngkp : Pubkey) -> Result<()> {
-    let state = &mut ctx.accounts.global_state_account;
 
-    state.switchboard_random_account = rngkp;
-    state.rand_value = None;
-    state.bump = ctx.bumps.global_state_account;
+// ! i guess we need to store all the bumps -- i missed it I guess
+pub fn handler(ctx: Context<Initialize>, rngkp : Pubkey, normal_marble_max : u8, pool_total_cap : u64, ticket_price : u64, lp_target_percent : u64, reserve_percent : u64) -> Result<()> {
+    let global_state = &mut ctx.accounts.global_state_account;
+    let epoch_state = &mut ctx.accounts.per_epoch_state_account;
+    let lp_drawing_state  = &mut ctx.accounts.drawing_id_to_lp_drawing_state;
 
-    msg!("✅ [INITIALIZE] PDA created at: {:?}", state.key());
-    msg!("✅ [INITIALIZE] Linked to Switchboard account: {:?}", state.switchboard_random_account);
+    global_state.switchboard_random_account = rngkp;
+    global_state.rand_value = None;
+    global_state.bump = ctx.bumps.global_state_account;
+
+    global_state.normal_marble_max = normal_marble_max; // 30
+    global_state.current_epoch_id = 0;
+    global_state.pool_total_cap = pool_total_cap; //
+    global_state.ticket_price = ticket_price; // 1e6 -- USDC
+    global_state.lp_target_percent = lp_target_percent; //
+    global_state.reserve_percent = reserve_percent;
+
+    epoch_state.epoch_id = 0;
+    epoch_state.shares_percentage = PRECISE_UNIT;
+
+    let calc_lp_pool_cap = main::calculate_lp_pool_cap(normal_marble_max, ticket_price, lp_target_percent, reserve_percent, pool_total_cap);
+
+    lp_drawing_state.bump = ctx.bumps.drawing_id_to_lp_drawing_state;
+
+
+    main::set_lp_pool_cap(&mut global_state.lp_pool_cap, lp_drawing_state.pending_deposits, lp_drawing_state.lp_pool_total, calc_lp_pool_cap.ok_or(LordspotError::AirthMaticOverflow)?)?;
+
+
+    msg!("✅ [INITIALIZE] PDA created at: {:?}", global_state.key());
+    msg!("✅ [INITIALIZE] Linked to Switchboard account: {:?}", global_state.switchboard_random_account);
     Ok(())
 }
 
@@ -28,15 +53,52 @@ pub struct Initialize<'info> {
         address = ADMIN_PUBKEY.parse::<Pubkey>().unwrap()
     )]
     pub signer : Signer<'info>,
+
     #[account(
         init,
         payer = signer,
         space = 8 + GlobalState::INIT_SPACE,
-        seeds = [b"global_state_account"],
+        seeds = [SEED_GLOBAL],
         bump
     )]
     pub global_state_account: Account<'info, GlobalState>,
+
+    #[account(
+        init,
+        payer = signer,
+        space = 8 + PerEpochState::INIT_SPACE,
+        seeds = [SEED_PER_EPOCH, 0u64.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub per_epoch_state_account : Account<'info, PerEpochState>,
+
+    #[account(
+        init,
+        payer = signer,
+        space = 8 + EpochIdToLPDrawingState::INIT_SPACE,
+        seeds = [SEED_LP_DRAWING_STATE, 0u64.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub drawing_id_to_lp_drawing_state : Account<'info, EpochIdToLPDrawingState>,
+
+    #[account(
+        address = USDC_DEVNET_ADDRESS @ LordspotError::InvalidMintAddress
+    )]
+    pub usdc_mint: InterfaceAccount<'info, Mint>,
+
+    #[account(
+        init,
+        payer = signer,
+        token::mint = usdc_mint,
+        token::authority = global_state_account,
+        seeds=[SEED_PROTOCOL_USDC_ACCOUNT],
+        bump
+    )]
+    pub protocol_usdc_vault : InterfaceAccount<'info, TokenAccount>,
+
     pub system_program : Program<'info, System>,
+    pub associated_token_program : Program<'info, AssociatedToken>,
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 
@@ -45,11 +107,12 @@ pub struct CloseState<'info> {
     #[account(
         mut,
         close = signer,
-        seeds = [b"global_state_account"],
+        seeds = [SEED_GLOBAL],
         bump = global_state_account.bump,
-        constraint = signer.key() == ADMIN_PUBKEY.parse::<Pubkey>().unwrap() @ ErrorCode::Unauthorized
+        constraint = signer.key() == ADMIN_PUBKEY.parse::<Pubkey>().unwrap() @ LordspotError::Unauthorized
     )]
     pub global_state_account: Account<'info, GlobalState>,
+
     #[account(mut)]
     pub signer: Signer<'info>,
 }

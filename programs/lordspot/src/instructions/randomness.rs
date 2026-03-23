@@ -1,8 +1,9 @@
 use anchor_lang::prelude::*;
-use crate::constants::ADMIN_PUBKEY;
+use crate::constants::{ADMIN_PUBKEY, SEED_GLOBAL};
 use switchboard_on_demand::accounts::RandomnessAccountData;
+use crate::error::LordspotError;
 use crate::state::GlobalState;
-use crate::error::ErrorCode;
+use crate::error::LordspotError::{SlotMismatch, SeedMisMatch, UnresolvedRandomness};
 
 pub fn commit_to_random_num_handler(ctx : Context<CommitToRandomNum>) -> Result<()> {
     let state = &mut ctx.accounts.global_state_account;
@@ -14,15 +15,9 @@ pub fn commit_to_random_num_handler(ctx : Context<CommitToRandomNum>) -> Result<
 
     msg!("🚀 [COMMIT] Slot: {} | SB Seed Slot: {}", clock.slot, randomness_data.seed_slot);
 
-    if randomness_data.seed_slot != clock.slot - 1 {
-        msg!("❌ ERROR: Slot mismatch (expired)");
-        return Err(ErrorCode::RandomnessExpired.into());
-    }
+    (randomness_data.seed_slot != clock.slot - 1).then_some(()).ok_or(SlotMismatch)?;
 
-    if !randomness_data.get_value(clock.slot).is_err() {
-        msg!("❌ ERROR: Already revealed");
-        return Err(ErrorCode::RandomnessAlreadyRevealed.into());
-    }
+    require!(randomness_data.get_value(clock.slot).is_err(), LordspotError::AlreadyRevealedRandomValue);
 
     state.commit_slot = randomness_data.seed_slot;
     Ok(())
@@ -36,14 +31,11 @@ pub fn save_random_num_handler(ctx : Context<SaveRandomNum>) -> Result<()> {
         ctx.accounts.switchboard_random_account.data.borrow()
     ).unwrap();
 
-    if randomness_data.seed_slot != state.commit_slot {
-        msg!("❌ ERROR: Seed mismatch");
-        return Err(ErrorCode::RandomnessMismatch.into());
-    }
+    (randomness_data.seed_slot == state.commit_slot).then_some(()).ok_or(SeedMisMatch)?;
 
     let revealed_random_value = randomness_data
         .get_value(clock.slot)
-        .map_err(|_| ErrorCode::RandomnessNotResolved)?;
+        .map_err(|_| UnresolvedRandomness)?;
 
     let val = revealed_random_value[0] as u32;
     state.rand_value = Some(val);
@@ -60,7 +52,7 @@ pub struct CommitToRandomNum<'info>{
     #[account(
         mut,
         has_one = switchboard_random_account,
-        seeds = [b"global_state_account"],
+        seeds = [SEED_GLOBAL],
         bump = global_state_account.bump
     )]
     pub global_state_account: Account<'info, GlobalState>,
@@ -76,7 +68,7 @@ pub struct SaveRandomNum<'info>{
     #[account(
         mut,
         has_one = switchboard_random_account,
-        seeds = [b"global_state_account"],
+        seeds = [SEED_GLOBAL],
         bump = global_state_account.bump
     )]
     pub global_state_account: Account<'info, GlobalState>,
