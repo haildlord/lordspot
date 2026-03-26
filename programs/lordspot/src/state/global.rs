@@ -3,6 +3,24 @@ use anchor_lang::prelude::*;
 
 #[account]
 #[derive(InitSpace)]
+pub struct DrawingState {
+    pub prize_pool : u64,
+    pub ticket_price : u64,
+    pub edge_per_ticket : u64,
+    pub global_tickets_bought : u64,
+    pub lp_earnings : u64,
+    pub marble_max : u8,
+    pub special_marble_max : u8,
+    pub drawing_time : u64,
+    pub winning_ticket : u64,
+    pub jackpot_lock : bool,
+
+    pub bump : u8,
+}
+
+
+#[account]
+#[derive(InitSpace)]
 pub struct GlobalState {
     pub switchboard_random_account: Pubkey,
     pub bump: u8,
@@ -32,7 +50,7 @@ pub struct PerEpochState {
 
 #[account]
 #[derive(InitSpace)]
-pub struct EpochIdToLPDrawingState {
+pub struct EpochIdToLPDrawingState { // mapping(drawingId => LPDrawingState) internal lpDrawingState;
     pub lp_pool_total : u64,
     pub pending_deposits : u64,
     pub pending_withdrawals : u64,

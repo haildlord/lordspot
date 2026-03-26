@@ -19,9 +19,8 @@ anchor-debug = []
 custom-heap = []
 custom-panic = []
 
-
 [dependencies]
-anchor-lang = "0.32.1"
+anchor-lang = { version = "0.32.1", features = ["init-if-needed"] }
 anchor-spl = { version = "0.32.1", features = ["metadata"] }
 switchboard-on-demand = "0.11.3"
 

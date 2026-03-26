@@ -47,7 +47,7 @@ pub fn save_random_num_handler(ctx : Context<SaveRandomNum>) -> Result<()> {
 
 #[derive(Accounts)]
 pub struct CommitToRandomNum<'info>{
-    #[account(mut, address = ADMIN_PUBKEY.parse::<Pubkey>().unwrap())]
+    #[account(mut,  address = ADMIN_PUBKEY @ LordspotError::InvalidOwner)]
     pub signer : Signer<'info>,
     #[account(
         mut,
@@ -63,7 +63,7 @@ pub struct CommitToRandomNum<'info>{
 
 #[derive(Accounts)]
 pub struct SaveRandomNum<'info>{
-    #[account(mut, address = ADMIN_PUBKEY.parse::<Pubkey>().unwrap())]
+    #[account(mut, address = ADMIN_PUBKEY @ LordspotError::InvalidOwner)]
     pub signer : Signer<'info>,
     #[account(
         mut,

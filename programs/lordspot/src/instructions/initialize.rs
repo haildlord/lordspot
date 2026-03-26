@@ -1,8 +1,8 @@
 use anchor_lang::prelude::*;
-use crate::constants::{ADMIN_PUBKEY, SEED_PER_EPOCH, SEED_GLOBAL, PRECISE_UNIT, SEED_LP_DRAWING_STATE, SEED_PROTOCOL_USDC_ACCOUNT, USDC_DEVNET_ADDRESS};
-use crate::state::{PerEpochState, GlobalState, EpochIdToLPDrawingState};
+use crate::constants::{ADMIN_PUBKEY, SEED_PER_EPOCH, SEED_GLOBAL, PRECISE_UNIT, SEED_LP_DRAWING_STATE, SEED_PROTOCOL_USDC_ACCOUNT, USDC_DEVNET_ADDRESS, SEED_DRAWING_STATE};
+use crate::state::{PerEpochState, GlobalState, EpochIdToLPDrawingState, DrawingState};
 use crate::error::LordspotError;
-use crate::utility::main;
+use crate::utility::main::*;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
@@ -27,12 +27,12 @@ pub fn handler(ctx: Context<Initialize>, rngkp : Pubkey, normal_marble_max : u8,
     epoch_state.epoch_id = 0;
     epoch_state.shares_percentage = PRECISE_UNIT;
 
-    let calc_lp_pool_cap = main::calculate_lp_pool_cap(normal_marble_max, ticket_price, lp_target_percent, reserve_percent, pool_total_cap);
+    let calc_lp_pool_cap = calculate_lp_pool_cap(normal_marble_max, ticket_price, lp_target_percent, reserve_percent, pool_total_cap);
 
     lp_drawing_state.bump = ctx.bumps.drawing_id_to_lp_drawing_state;
 
 
-    main::set_lp_pool_cap(&mut global_state.lp_pool_cap, lp_drawing_state.pending_deposits, lp_drawing_state.lp_pool_total, calc_lp_pool_cap.ok_or(LordspotError::AirthMaticOverflow)?)?;
+    set_lp_pool_cap(&mut global_state.lp_pool_cap, lp_drawing_state.pending_deposits, lp_drawing_state.lp_pool_total, calc_lp_pool_cap.ok_or(LordspotError::AirthMaticOverflow)?)?;
 
 
     msg!("✅ [INITIALIZE] PDA created at: {:?}", global_state.key());
@@ -45,12 +45,26 @@ pub fn close_handler(_ctx: Context<CloseState>) -> Result<()> {
     Ok(())
 }
 
+pub fn init_lordspot_handler(ctx : Context<InitializeLordsPot>) -> Result<()> {
+
+    process_drawing_settlement(
+        &ctx.accounts.global_state_account,
+        &ctx.accounts.drawing_id_to_lp_drawing_state,
+        &ctx.accounts.drawing_state_account,
+        &mut ctx.accounts.per_epoch_state_account,
+        &ctx.accounts.prev_per_epoch_state_account,
+        0,
+        0
+    )?;
+
+    Ok(())
+}
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(
         mut,
-        address = ADMIN_PUBKEY.parse::<Pubkey>().unwrap()
+        address = ADMIN_PUBKEY @ LordspotError::InvalidOwner
     )]
     pub signer : Signer<'info>,
 
@@ -101,6 +115,49 @@ pub struct Initialize<'info> {
     pub token_program: Interface<'info, TokenInterface>,
 }
 
+#[derive(Accounts)]
+pub struct InitializeLordsPot<'info> {
+
+    #[account(
+        mut,
+        address = ADMIN_PUBKEY @ LordspotError::InvalidOwner
+    )]
+    pub signer : Signer<'info>,
+
+    #[account(
+        seeds = [SEED_GLOBAL],
+        bump = global_state_account.bump,
+        constraint = global_state_account.current_epoch_id == 0 @ LordspotError::LordspotAlreadyInitialized
+    )]
+    pub global_state_account: Account<'info, GlobalState>,
+
+    #[account(
+        seeds = [SEED_PER_EPOCH, 0u64.to_le_bytes().as_ref()],
+        bump = per_epoch_state_account.bump,
+        constraint = per_epoch_state_account.shares_percentage == PRECISE_UNIT @ LordspotError::LPDepositsNotInitialized
+    )]
+    pub per_epoch_state_account : Account<'info, PerEpochState>,
+
+    pub prev_per_epoch_state_account: Option<Account<'info, PerEpochState>>,
+
+    #[account(
+        seeds = [SEED_LP_DRAWING_STATE, 0u64.to_le_bytes().as_ref()],
+        bump = drawing_id_to_lp_drawing_state.bump,
+        constraint = drawing_id_to_lp_drawing_state.pending_deposits != 0 @ LordspotError::NoLPDeposits
+    )]
+    pub drawing_id_to_lp_drawing_state : Account<'info, EpochIdToLPDrawingState>,
+
+    #[account(
+        init,
+        payer = signer,
+        space = 8 + DrawingState::INIT_SPACE,
+        seeds = [SEED_DRAWING_STATE, 0u64.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub drawing_state_account : Account<'info, DrawingState>,
+
+    pub system_program : Program<'info, System>,
+}
 
 #[derive(Accounts)]
 pub struct CloseState<'info> {
@@ -109,7 +166,7 @@ pub struct CloseState<'info> {
         close = signer,
         seeds = [SEED_GLOBAL],
         bump = global_state_account.bump,
-        constraint = signer.key() == ADMIN_PUBKEY.parse::<Pubkey>().unwrap() @ LordspotError::Unauthorized
+        address = ADMIN_PUBKEY @ LordspotError::InvalidOwner
     )]
     pub global_state_account: Account<'info, GlobalState>,
 

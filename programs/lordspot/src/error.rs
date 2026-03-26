@@ -2,11 +2,10 @@ use anchor_lang::prelude::*;
 
 #[error_code]
 pub enum LordspotError {
-    // You likely already need this one for your CloseState instruction
+
     #[msg("Unauthorized access. Admin only.")]
     Unauthorized,
 
-    // --- Randomness Errors ---
     #[msg("Randomness slot mismatch. The request has expired.")]
     RandomnessExpired,
 
@@ -27,6 +26,9 @@ pub enum LordspotError {
 
     #[msg("Airthematic Overflow Issue.")]
     AirthMaticOverflow,
+
+    #[msg("Airthematic Underflow Issue.")]
+    AirthMaticUnderflow,
 
     #[msg("Invalid Mint Address.")]
     InvalidMintAddress,
@@ -54,4 +56,19 @@ pub enum LordspotError {
 
     #[msg("Amount cannot be zero")]
     AmountCannotBeZero,
+
+    #[msg("Lp Pool Cap exceeded")]
+    ExceedsPoolCap,
+
+    #[msg("LP deposits not initialized.")]
+    LPDepositsNotInitialized,
+
+    #[msg("LordsPot already initialized.")]
+    LordspotAlreadyInitialized,
+
+    #[msg("No LP Deposits")]
+    NoLPDeposits,
+
+    #[msg("Missing Previous Epoch Account")]
+    MissingPreviousEpochAccount
 }

@@ -1,10 +1,11 @@
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token_interface::{Mint, TokenInterface, TokenAccount, TransferChecked, transfer_checked};
-use crate::constants::{USDC_DEVNET_ADDRESS, SEED_GLOBAL, SEED_PROTOCOL_USDC_ACCOUNT};
+use crate::constants::{USDC_DEVNET_ADDRESS, SEED_GLOBAL, SEED_PROTOCOL_USDC_ACCOUNT, SEED_LP_INFO, SEED_LP_DRAWING_STATE, SEED_PER_EPOCH};
 use crate::error::LordspotError;
-use crate::state::GlobalState;
-
+use crate::state::{EpochIdToLPDrawingState, GlobalState, PerEpochState};
+use crate::state::lp_related_state::LPInfo;
+use crate::utility::lp_related_utility::process_deposit;
 
 pub fn lp_deposit(ctx : Context<LpDeposit>, amount : u64) -> Result<()> {
 
@@ -21,6 +22,14 @@ pub fn lp_deposit(ctx : Context<LpDeposit>, amount : u64) -> Result<()> {
     );
 
     transfer_checked(cpi_context, amount, ctx.accounts.usdc_mint.decimals)?;
+
+    process_deposit(
+        &ctx.accounts.global_state_account,
+        &mut ctx.accounts.drawing_id_to_lp_drawing_state,
+        &mut ctx.accounts.lp_info_account,
+        &ctx.accounts.per_epoch_state_account,
+        amount
+    )?;
 
     Ok(())
 }
@@ -45,6 +54,12 @@ pub struct LpDeposit<'info>{
     pub global_state_account: Account<'info, GlobalState>,
 
     #[account(
+        seeds = [SEED_LP_DRAWING_STATE, global_state_account.current_epoch_id.to_le_bytes().as_ref()],
+        bump = drawing_id_to_lp_drawing_state.bump
+    )]
+    pub drawing_id_to_lp_drawing_state : Account<'info, EpochIdToLPDrawingState>,
+
+    #[account(
         mut,
         associated_token::mint = usdc_mint,
         associated_token::authority = signer,
@@ -60,6 +75,21 @@ pub struct LpDeposit<'info>{
         token::authority = global_state_account,
     )]
     pub protocol_usdc_vault : InterfaceAccount<'info, TokenAccount>,
+
+    #[account(
+        init_if_needed,
+        payer = signer,
+        space = 8 + LPInfo::INIT_SPACE,
+        seeds = [SEED_LP_INFO, signer.key().as_ref()],
+        bump
+    )]
+    pub lp_info_account : Account<'info, LPInfo>,
+
+    #[account(
+        seeds = [SEED_PER_EPOCH, lp_info_account.last_deposit_info.epoch_id.to_le_bytes().as_ref()],
+        bump = per_epoch_state_account.bump
+    )]
+    pub per_epoch_state_account : Account<'info, PerEpochState>,
 
     pub token_program: Interface<'info, TokenInterface>,
     pub associated_token_program : Program<'info, AssociatedToken>,
