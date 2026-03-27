@@ -70,5 +70,8 @@ pub enum LordspotError {
     NoLPDeposits,
 
     #[msg("Missing Previous Epoch Account")]
-    MissingPreviousEpochAccount
+    MissingPreviousEpochAccount,
+
+    #[msg("Invalid Marble Config")]
+    InvalidMarbleConfiguration
 }

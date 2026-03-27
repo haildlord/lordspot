@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use crate::constants::*;
 // ! at last Dont forget to rearrange the States usign chatgpt cuzz its makes storage and reading efficient
 
 #[account]
@@ -35,6 +36,15 @@ pub struct GlobalState {
     pub lp_target_percent : u64, // lpEdgeTarget
     pub reserve_percent : u64, // reserveRatio,
     pub lp_pool_cap : u64, // JackpotLPManager.sol :: lpPoolCap
+    pub special_ball_min : u8,
+
+
+    // State for TIERS
+    pub premium_tier_weights: [u64; TOTAL_TIER_COUNT as usize],         // premiumTierWeights
+    pub min_payout_tiers: [bool; TOTAL_TIER_COUNT as usize],           // minPayoutTiers
+    pub minimum_payout: u64,                                   // minimumPayout (e.g., 1111112)
+    pub premium_tier_min_allocation: u64,                      // premiumTierMinAllocation
+
 
     // additional
     pub protocol_usdc_mint_account : Pubkey
@@ -56,3 +66,21 @@ pub struct EpochIdToLPDrawingState { // mapping(drawingId => LPDrawingState) int
     pub pending_withdrawals : u64,
     pub bump: u8,
 }
+
+#[account]
+#[derive(InitSpace)]
+pub struct Tracker {
+    pub epoch_id : u64,
+
+    pub normal_marble_max : u8,
+    pub special_marble_max : u8,
+    pub normal_tiers : u8,
+
+
+    pub bump : u8
+}
+
+// pub struct ComboCount {
+//     pub count : u64,
+//     pub dup_count : u64
+// }

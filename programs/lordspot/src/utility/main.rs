@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use crate::utility::combinations::choose;
 use crate::constants::{NORMAL_SELECTABLE_MARBLE_COUNT, MAX_MARBLE_RANGE_COUNT, PRECISE_UNIT};
 use crate::error::LordspotError;
-use crate::state::{DrawingState, EpochIdToLPDrawingState, GlobalState, PerEpochState};
+use crate::state::{DrawingState, EpochIdToLPDrawingState, GlobalState, PerEpochState, Tracker};
 
 pub fn calculate_lp_pool_cap(
     normal_marble_max: u8,
@@ -74,5 +74,50 @@ pub fn process_drawing_settlement(_global_state_account : &Account<GlobalState> 
     let withdrawals_in_usdc = (_epoch_id_to_lp_drawing_state.pending_withdrawals as u128).checked_mul(new_accumulator as u128).and_then(|prod| prod.checked_div(PRECISE_UNIT as u128)).ok_or(LordspotError::AirthMaticUnderflow)? as u64;
     let new_lp_value = post_draw_lp_value.checked_add(_epoch_id_to_lp_drawing_state.pending_deposits).and_then(|sum| sum.checked_sub(withdrawals_in_usdc)).ok_or(LordspotError::AirthMaticOverflow)?;
     Ok((new_lp_value,new_accumulator))
+}
+
+pub fn _set_new_drawing_state( global_state_account : &mut Account<GlobalState>, next_drawing_id_to_lp_drawing_state : &mut Account<EpochIdToLPDrawingState>, next_drawing_state_account : &mut Account<DrawingState>, epoch_to_tracker_account : &mut Account<Tracker>, new_lp_value : u64, ini_drawing_time : u64) -> Result<()> {
+
+    global_state_account.current_epoch_id = global_state_account.current_epoch_id
+        .checked_add(1)
+        .ok_or(LordspotError::AirthMaticOverflow)?;
+
+    next_drawing_id_to_lp_drawing_state.lp_pool_total = new_lp_value;
+    next_drawing_id_to_lp_drawing_state.pending_deposits = 0;
+    next_drawing_id_to_lp_drawing_state.pending_withdrawals = 0;
+
+    let net_reserve_ratio = (PRECISE_UNIT).checked_sub(global_state_account.reserve_percent).ok_or(LordspotError::AirthMaticUnderflow)? as u128;
+    let new_prize_pool =  net_reserve_ratio.checked_mul(new_lp_value as u128).and_then(|prod| prod.checked_div(PRECISE_UNIT as u128)).ok_or(LordspotError::AirthMaticOverflow)? as u64;
+    next_drawing_state_account.prize_pool = new_prize_pool;
+
+    next_drawing_state_account.ticket_price = global_state_account.ticket_price;
+    next_drawing_state_account.edge_per_ticket = (global_state_account.lp_target_percent as u128).checked_mul(global_state_account.ticket_price as u128).ok_or(LordspotError::AirthMaticOverflow)?.checked_div(PRECISE_UNIT as u128).ok_or(LordspotError::AirthMaticUnderflow)? as u64;
+    next_drawing_state_account.global_tickets_bought = 0;
+    next_drawing_state_account.lp_earnings = 0;
+    next_drawing_state_account.marble_max = global_state_account.normal_marble_max;
+    next_drawing_state_account.drawing_time = ini_drawing_time;
+    next_drawing_state_account.jackpot_lock = false;
+
+    let combo_per_bonus_ball = choose(global_state_account.normal_marble_max as u64, NORMAL_SELECTABLE_MARBLE_COUNT as u64).ok_or(LordspotError::InvalidMarbleConfiguration)?;;
+
+    let numerator = (new_prize_pool as u128).checked_mul(PRECISE_UNIT as u128).ok_or(LordspotError::AirthMaticOverflow)?;
+    let denominator = (PRECISE_UNIT as u128).checked_sub(global_state_account.lp_target_percent as u128).and_then(|prod| prod.checked_mul(global_state_account.ticket_price as u128)).ok_or(LordspotError::AirthMaticOverflow)?;
+    let min_number_tickets = numerator.checked_div(denominator).ok_or(LordspotError::AirthMaticUnderflow)? as u64;
+
+    let ceil_div = (min_number_tickets as u128)
+        .checked_add(combo_per_bonus_ball as u128)
+        .and_then(|sum| sum.checked_sub(1))
+        .and_then(|val| val.checked_div(combo_per_bonus_ball as u128))
+        .ok_or(LordspotError::AirthMaticOverflow)? as u64;
+
+     let new_bonus_ball= std::cmp::max(global_state_account.special_ball_min as u64, ceil_div) as u8;
+    next_drawing_state_account.special_marble_max = new_bonus_ball;
+
+    // TRACKER updatation :
+    epoch_to_tracker_account.normal_marble_max = global_state_account.normal_marble_max;
+    epoch_to_tracker_account.special_marble_max = new_bonus_ball;
+    epoch_to_tracker_account.normal_tiers = NORMAL_SELECTABLE_MARBLE_COUNT;
+    
+    Ok(())
 }
 
