@@ -21,3 +21,42 @@ pub const SEED_PROTOCOL_USDC_ACCOUNT : &[u8] = b"protocol_usdc_mint_account";
 pub const SEED_LP_INFO : &[u8] = b"lp_info_account";
 pub const SEED_DRAWING_STATE : &[u8] = b"drawing_state_account";
 pub const SEED_TRACKER_PER_EPOCH : &[u8] = b"epoch_to_tracker_account";
+pub const SEED_BUCKET : &[u8] = b"ticket_bucket";
+pub const SEED_TICKET : &[u8] = b"buyers_ticket";
+
+
+// Existing constants stay — just add these
+pub const SEED_TREE_AUTHORITY: &[u8]  = b"tree_authority";
+pub const METADATA_BASE_URL:   &str   = "https://your-app.railway.app/ticket";
+// depth 20 = max 1,048,576 tickets per epoch
+pub const TREE_MAX_DEPTH:       u32   = 20;
+pub const TREE_MAX_BUFFER_SIZE: u32   = 64;  // concurrent updates allowed
+pub const TREE_CANOPY_DEPTH:    u32   = 0;   // 0 = cheapest, no canopy
+
+
+// // State for TIERS
+// pub premium_tier_weights: [u64; TOTAL_TIER_COUNT as usize],         // premiumTierWeights
+// pub min_payout_tiers: [bool; TOTAL_TIER_COUNT as usize],           // minPayoutTiers
+// pub minimum_payout: u64,                                   // minimumPayout (e.g., 1111112)
+// pub premium_tier_min_allocation: u64,                      // premiumTierMinAllocation
+//
+// for i in 0..TOTAL_TIER_COUNT {
+//
+// if i == 0 || i == 2 {
+// global_state.min_payout_tiers[i as usize] = false;
+// }else{
+// global_state.min_payout_tiers[i as usize] = true;
+// }
+//
+// if i == 3 || i == 5 || i == 6 {
+// global_state.premium_tier_weights[i as usize] = 12 * (PRECISE_UNIT / 100);
+// } else if i == 7 || i == 8 || i == 9 || i == 10 {
+// global_state.premium_tier_weights[i as usize] = 6 * (PRECISE_UNIT / 100);
+// }else if i == 11 {
+// global_state.premium_tier_weights[i as usize] = 40 * (PRECISE_UNIT / 100);
+// }else {
+// global_state.premium_tier_weights[i as usize] = 0 * (PRECISE_UNIT / 100);
+// }
+// }
+// global_state.minimum_payout = 1111112;
+// global_state.premium_tier_min_allocation = 2 * (PRECISE_UNIT / 100);

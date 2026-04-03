@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
-use crate::constants::{ADMIN_PUBKEY, SEED_PER_EPOCH, SEED_GLOBAL, PRECISE_UNIT, SEED_LP_DRAWING_STATE, SEED_PROTOCOL_USDC_ACCOUNT, USDC_DEVNET_ADDRESS, SEED_DRAWING_STATE, SEED_TRACKER_PER_EPOCH, TOTAL_TIER_COUNT};
-use crate::state::{PerEpochState, GlobalState, EpochIdToLPDrawingState, DrawingState, Tracker};
+use crate::constants::{ADMIN_PUBKEY, SEED_PER_EPOCH, SEED_GLOBAL, PRECISE_UNIT, SEED_LP_DRAWING_STATE, SEED_PROTOCOL_USDC_ACCOUNT, USDC_DEVNET_ADDRESS, SEED_DRAWING_STATE, SEED_TRACKER_PER_EPOCH, TOTAL_TIER_COUNT, SEED_BUCKET};
+use crate::state::{PerEpochState, GlobalState, EpochIdToLPDrawingState, DrawingState};
 use crate::error::LordspotError;
 use crate::utility::main::*;
 use anchor_spl::associated_token::AssociatedToken;
@@ -16,6 +16,8 @@ pub fn handler(ctx: Context<Initialize>, rngkp : Pubkey, normal_marble_max : u8,
     global_state.switchboard_random_account = rngkp;
     global_state.rand_value = None;
     global_state.bump = ctx.bumps.global_state_account;
+    
+    global_state.protocol_usdc_vault_bump = ctx.bumps.protocol_usdc_vault;
 
     global_state.normal_marble_max = normal_marble_max; // 30
     global_state.current_epoch_id = 0;
@@ -24,27 +26,7 @@ pub fn handler(ctx: Context<Initialize>, rngkp : Pubkey, normal_marble_max : u8,
     global_state.lp_target_percent = lp_target_percent; //
     global_state.reserve_percent = reserve_percent;
     global_state.special_ball_min = special_ball_min; // 5
-
-    for i in 0..TOTAL_TIER_COUNT {
-
-        if i == 0 || i == 2 {
-            global_state.min_payout_tiers[i as usize] = false;
-        }else{
-            global_state.min_payout_tiers[i as usize] = true;
-        }
-
-        if i == 3 || i == 5 || i == 6 {
-            global_state.premium_tier_weights[i as usize] = 12 * (PRECISE_UNIT / 100);
-        } else if i == 7 || i == 8 || i == 9 || i == 10 {
-            global_state.premium_tier_weights[i as usize] = 6 * (PRECISE_UNIT / 100);
-        }else if i == 11 {
-            global_state.premium_tier_weights[i as usize] = 40 * (PRECISE_UNIT / 100);
-        }else {
-            global_state.premium_tier_weights[i as usize] = 0 * (PRECISE_UNIT / 100);
-        }
-    }
-    global_state.minimum_payout = 1111112;
-    global_state.premium_tier_min_allocation = 2 * (PRECISE_UNIT / 100);
+    global_state.edge_per_ticket = (lp_target_percent as u128).checked_mul(ticket_price as u128).ok_or(LordspotError::AirthMaticOverflow)?.checked_div(PRECISE_UNIT as u128).ok_or(LordspotError::AirthMaticUnderflow)? as u64;
 
     epoch_state.epoch_id = 0;
     epoch_state.shares_percentage = PRECISE_UNIT;
@@ -71,8 +53,7 @@ pub fn close_handler(_ctx: Context<CloseState>) -> Result<()> {
 
 pub fn init_lordspot_handler(ctx : Context<InitializeLordsPot>, ini_drawing_time : u64) -> Result<()> {
 
-    ctx.accounts.epoch_to_tracker_account.epoch_id = 1;
-    ctx.accounts.epoch_to_tracker_account.bump = ctx.bumps.epoch_to_tracker_account;
+    ctx.accounts.global_state_account.allow_ticket_purchase = true;
 
     let (new_lp_value, _) = process_drawing_settlement(
         &ctx.accounts.global_state_account,
@@ -84,7 +65,7 @@ pub fn init_lordspot_handler(ctx : Context<InitializeLordsPot>, ini_drawing_time
         0
     )?;
 
-    _set_new_drawing_state(&mut ctx.accounts.global_state_account, &mut ctx.accounts.next_drawing_id_to_lp_drawing_state, &mut ctx.accounts.next_drawing_state_account, &mut ctx.accounts.epoch_to_tracker_account,new_lp_value, ini_drawing_time)?;
+    _set_new_drawing_state(&mut ctx.accounts.global_state_account, &mut ctx.accounts.next_drawing_id_to_lp_drawing_state, &mut ctx.accounts.next_drawing_state_account,new_lp_value, ini_drawing_time)?;
 
 
     Ok(())
@@ -190,7 +171,7 @@ pub struct InitializeLordsPot<'info> {
         init,
         payer = signer,
         space = 8 + DrawingState::INIT_SPACE,
-        seeds = [SEED_DRAWING_STATE, 0u64.to_le_bytes().as_ref()],
+        seeds = [SEED_DRAWING_STATE],
         bump
     )]
     pub drawing_state_account : Account<'info, DrawingState>,
@@ -203,15 +184,6 @@ pub struct InitializeLordsPot<'info> {
         bump
     )]
     pub next_drawing_state_account : Account<'info, DrawingState>,
-
-    #[account(
-        init,
-        payer = signer,
-        space = 8 + Tracker::INIT_SPACE,
-        seeds = [SEED_TRACKER_PER_EPOCH, 1u64.to_le_bytes().as_ref()],
-        bump
-    )]
-    pub epoch_to_tracker_account : Account<'info, Tracker>,
 
     pub system_program : Program<'info, System>,
 }
