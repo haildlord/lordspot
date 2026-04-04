@@ -23,6 +23,7 @@ pub const SEED_DRAWING_STATE : &[u8] = b"drawing_state_account";
 pub const SEED_TRACKER_PER_EPOCH : &[u8] = b"epoch_to_tracker_account";
 pub const SEED_BUCKET : &[u8] = b"ticket_bucket";
 pub const SEED_TICKET : &[u8] = b"buyers_ticket";
+pub const SEED_TALLY: &[u8] = b"tally_state";
 
 
 // Existing constants stay — just add these

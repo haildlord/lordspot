@@ -110,6 +110,21 @@ pub enum LordspotError {
 
     #[msg("Ticket purchase window is closed.")]
     DrawingClosed,
+
+    #[msg("Invalid Marble Config")]
+    InvalidMarbleConfig,
+
+    #[msg("Drawing time has not passed yet.")]
+    DrawingNotReady,
+
+    #[msg("Tally is already settled.")]
+    TallyAlreadySettled,
+
+    #[msg("Tally is not yet settled.")]
+    TallyNotSettled,
+
+    #[msg("Ticket order mismatch. Pass tickets in sequential order.")]
+    InvalidTicketOrder,
 }
 
 // https://code4rena.com/reports/2025-11-megapot
