@@ -125,6 +125,12 @@ pub enum LordspotError {
 
     #[msg("Ticket order mismatch. Pass tickets in sequential order.")]
     InvalidTicketOrder,
+
+    #[msg("Drawing is not yet completed.")]
+    DrawingNotCompleted,
+
+    #[msg("Ticket has already been claimed.")]
+    AlreadyClaimed,
 }
 
 // https://code4rena.com/reports/2025-11-megapot
