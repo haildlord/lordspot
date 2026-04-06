@@ -8,7 +8,7 @@ use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 
 // ! i guess we need to store all the bumps -- i missed it I guess
-pub fn handler(ctx: Context<Initialize>, rngkp : Pubkey, normal_marble_max : u8, pool_total_cap : u64, ticket_price : u64, lp_target_percent : u64, reserve_percent : u64, special_ball_min : u8) -> Result<()> {
+pub fn handler(ctx: Context<Initialize>, rngkp : Pubkey, normal_marble_max : u8, pool_total_cap : u64, ticket_price : u64, lp_target_percent : u64, special_ball_min : u8) -> Result<()> {
     let global_state = &mut ctx.accounts.global_state_account;
     let epoch_state = &mut ctx.accounts.per_epoch_state_account;
     let lp_drawing_state  = &mut ctx.accounts.drawing_id_to_lp_drawing_state;
@@ -24,7 +24,6 @@ pub fn handler(ctx: Context<Initialize>, rngkp : Pubkey, normal_marble_max : u8,
     global_state.pool_total_cap = pool_total_cap; //
     global_state.ticket_price = ticket_price; // 1e6 -- USDC
     global_state.lp_target_percent = lp_target_percent; //
-    global_state.reserve_percent = reserve_percent;
     global_state.special_ball_min = special_ball_min; // 5
     global_state.edge_per_ticket = (lp_target_percent as u128).checked_mul(ticket_price as u128).ok_or(LordspotError::AirthMaticOverflow)?.checked_div(PRECISE_UNIT as u128).ok_or(LordspotError::AirthMaticUnderflow)? as u64;
 

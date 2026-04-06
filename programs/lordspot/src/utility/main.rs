@@ -86,8 +86,7 @@ pub fn _set_new_drawing_state( global_state_account : &mut Account<GlobalState>,
     next_drawing_id_to_lp_drawing_state.pending_deposits = 0;
     next_drawing_id_to_lp_drawing_state.pending_withdrawals = 0;
 
-    let net_reserve_ratio = (PRECISE_UNIT).checked_sub(global_state_account.reserve_percent).ok_or(LordspotError::AirthMaticUnderflow)? as u128;
-    let new_prize_pool =  net_reserve_ratio.checked_mul(new_lp_value as u128).and_then(|prod| prod.checked_div(PRECISE_UNIT as u128)).ok_or(LordspotError::AirthMaticOverflow)? as u64;
+    let new_prize_pool = (new_lp_value as u128).checked_div(PRECISE_UNIT as u128).ok_or(LordspotError::AirthMaticOverflow)? as u64;
     drawing_state_account.prize_pool = new_prize_pool;
 
     drawing_state_account.total_tickets = 0;
