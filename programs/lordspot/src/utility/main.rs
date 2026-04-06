@@ -8,7 +8,6 @@ pub fn calculate_lp_pool_cap(
     normal_marble_max: u8,
     ticket_price: u64,
     lp_target_percent: u64,
-    reserve_percent: u64,
     governance_pool_cap: u64
 ) -> Option<u64> {
     // 1. choosing NORMAL_SELECTABLE_MARBLE_COUNT from total allowed
@@ -30,10 +29,7 @@ pub fn calculate_lp_pool_cap(
 
     // 6. Extrapolate Prize Pool based on Reserve Ratio : adding the netRveneue such that reserves are also extrapolated
     let calculated_prize_pool = net_revenue_u128
-        .checked_mul(PRECISE_UNIT as u128)?
-        .checked_div(
-            (PRECISE_UNIT as u128).checked_sub(reserve_percent as u128)?
-        )?;
+        .checked_mul(PRECISE_UNIT as u128)?;
 
     // 7. THE MIN LOGIC
     // Compare our mathematical max against the hard governance limit

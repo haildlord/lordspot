@@ -32,7 +32,7 @@ pub fn handler(ctx: Context<Initialize>, rngkp : Pubkey, normal_marble_max : u8,
 
 
 
-    let calc_lp_pool_cap = calculate_lp_pool_cap(normal_marble_max, ticket_price, lp_target_percent, reserve_percent, pool_total_cap);
+    let calc_lp_pool_cap = calculate_lp_pool_cap(normal_marble_max, ticket_price, lp_target_percent, pool_total_cap);
 
     lp_drawing_state.bump = ctx.bumps.drawing_id_to_lp_drawing_state;
 
