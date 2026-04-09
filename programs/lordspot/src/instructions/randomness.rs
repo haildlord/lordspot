@@ -1,10 +1,10 @@
 use anchor_lang::prelude::*;
-use crate::constants::{ADMIN_PUBKEY, SEED_GLOBAL, SEED_DRAWING_STATE, SEED_LP_DRAWING_STATE, SEED_TALLY, PRECISE_UNIT};
+use crate::constants::{ADMIN_PUBKEY, SEED_GLOBAL, SEED_DRAWING_STATE, SEED_LP_DRAWING_STATE, SEED_TALLY, PRECISE_UNIT, PREMIUM_TIER_WEIGHTS};
 use switchboard_on_demand::accounts::RandomnessAccountData;
 use crate::error::LordspotError;
 use crate::state::{DrawingState, GlobalState, EpochIdToLPDrawingState, TallyState, TallyStatus, TicketAccount};
 use crate::error::LordspotError::{SlotMismatch, SeedMisMatch, UnresolvedRandomness};
-use crate::utility::run_lordspot_state::{fisher_yates_draw, compute_winning_bitvec, calculate_special_marble_max};
+use crate::utility::run_lordspot_state::{fisher_yates_draw, compute_winning_bitvec, calculate_special_marble_max, calculate_tier_winners_and_payouts};
 
 
 pub fn commit_to_random_num_handler(ctx : Context<CommitToRandomNum>) -> Result<()> {
@@ -205,46 +205,27 @@ pub fn crank_tally_handler<'info>(
         .ok_or(LordspotError::AirthMaticOverflow)?;
 
     // ----------------------------------------------------------
-    // 4. FINAL BATCH — COMPUTE PAYOUTS AND SETTLE
+    // 4. FINAL BATCH — COMPUTE PAYOUTS (EXACT SOLIDITY MATH)
     // ----------------------------------------------------------
     if tally_mut.cursor >= total_tickets {
-
-        let prize_pool        = ctx.accounts.drawing_state_account.prize_pool;
-        let lp_earnings       = ctx.accounts.drawing_state_account.lp_earnings;
-        let tier_weights      = ctx.accounts.global_state_account.tier_weights;
+        let normal_max = ctx.accounts.global_state_account.normal_marble_max;
+        let bonus_max  = ctx.accounts.drawing_state_account.special_marble_max;
+        let prize_pool = ctx.accounts.drawing_state_account.prize_pool;
+        let lp_earnings = ctx.accounts.drawing_state_account.lp_earnings;
         let protocol_fee_rate = ctx.accounts.global_state_account.protocol_fee_rate;
 
-        let mut total_user_winnings: u64 = 0;
+        let ( _tier_winners, tier_payouts, _use_min, _min_alloc, total_user_winnings ) =
+            calculate_tier_winners_and_payouts(
+                prize_pool,
+                normal_max,
+                bonus_max,
+                &tally_mut.tier_counts,   // real_user_tickets_per_tier
+            );
 
-        for i in 0..12usize {
-            if tally_mut.tier_counts[i] > 0 && tier_weights[i] > 0 {
+        // Store per-ticket payouts (exactly what claim reads)
+        tally_mut.tier_payouts = tier_payouts;
 
-                // tier_prize = prize_pool × weight / PRECISE_UNIT
-                let tier_prize = (prize_pool as u128)
-                    .checked_mul(tier_weights[i] as u128)
-                    .ok_or(LordspotError::AirthMaticOverflow)?
-                    .checked_div(PRECISE_UNIT as u128)
-                    .ok_or(LordspotError::AirthMaticUnderflow)? as u64;
-
-                // payout per winner in this tier
-                let per_winner = tier_prize
-                    .checked_div(tally_mut.tier_counts[i])
-                    .ok_or(LordspotError::AirthMaticUnderflow)?;
-
-                tally_mut.tier_payouts[i] = per_winner;
-
-                // accumulate total user winnings
-                total_user_winnings = total_user_winnings
-                    .checked_add(
-                        per_winner
-                            .checked_mul(tally_mut.tier_counts[i])
-                            .ok_or(LordspotError::AirthMaticOverflow)?
-                    )
-                    .ok_or(LordspotError::AirthMaticOverflow)?;
-            }
-        }
-
-        // protocol_fee = lp_earnings × protocol_fee_rate / PRECISE_UNIT
+        // Protocol fee (unchanged)
         let protocol_fee = (lp_earnings as u128)
             .checked_mul(protocol_fee_rate as u128)
             .ok_or(LordspotError::AirthMaticOverflow)?

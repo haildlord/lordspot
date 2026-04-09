@@ -34,3 +34,21 @@ pub const TREE_MAX_DEPTH:       u32   = 20;
 pub const TREE_MAX_BUFFER_SIZE: u32   = 64;  // concurrent updates allowed
 pub const TREE_CANOPY_DEPTH:    u32   = 0;   // 0 = cheapest, no canopy
 
+
+// Add to the bottom of constants.rs
+pub const MIN_PAYOUT: u64 = 1_111_112;           // as in original Solidity
+pub const PREMIUM_TIER_MIN_ALLOCATION: u64 = 200_000_000_000; // 20% = 0.2 * PRECISE_UNIT
+
+// Tier configuration (exactly as in original Solidity)
+pub const MIN_PAYOUT_TIERS: [bool; 12] = [
+    false, true, false, true, true, true, true, true, true, true, true, true,
+];
+
+pub const PREMIUM_TIER_WEIGHTS: [u64; 12] = [
+    0, 0, 0, 120_000_000_000,   // 12%
+    0, 120_000_000_000,         // 12%
+    120_000_000_000,            // 12%
+    60_000_000_000,             // 6%
+    60_000_000_000, 60_000_000_000, 60_000_000_000,  // 6%
+    400_000_000_000,            // 40%
+];

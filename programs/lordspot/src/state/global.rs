@@ -40,7 +40,6 @@ pub struct GlobalState {
 
     // 👇 ADD THESE FOUR — this fixes errors 1 and 2
     pub special_ball_hard_cap:      u8,
-    pub tier_weights:               [u64; 12],
     pub protocol_fee_rate:          u64,
     pub drawing_duration:           u64,
 }
