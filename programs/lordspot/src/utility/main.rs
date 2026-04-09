@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use crate::utility::combinations::choose;
-use crate::constants::{NORMAL_SELECTABLE_MARBLE_COUNT, MAX_MARBLE_RANGE_COUNT, PRECISE_UNIT};
+use crate::constants::{NORMAL_SELECTABLE_MARBLE_COUNT, MAX_MARBLE_RANGE_COUNT, PRECISE_UNIT, BONUSBALL_SOFT_CAP};
 use crate::error::LordspotError;
 use crate::state::{DrawingState, EpochIdToLPDrawingState, GlobalState, PerEpochState};
 
@@ -108,3 +108,26 @@ pub fn _set_new_drawing_state( global_state_account : &mut Account<GlobalState>,
     Ok(())
 }
 
+pub fn calculate_lp_pool_soft_cap(
+    normal_marble_max: u8,
+    ticket_price: u64,
+    lp_target_percent: u64,
+) -> Result<u64> {
+    let combos = choose(normal_marble_max as u64, NORMAL_SELECTABLE_MARBLE_COUNT as u64)
+        .ok_or(LordspotError::InvalidMarbleConfiguration)?;
+
+    let max_tickets = combos
+        .checked_mul(BONUSBALL_SOFT_CAP as u64)
+        .ok_or(LordspotError::AirthMaticOverflow)?;
+
+    let max_prize = max_tickets
+        .checked_mul(ticket_price)
+        .ok_or(LordspotError::AirthMaticOverflow)?
+        .checked_mul(PRECISE_UNIT - lp_target_percent)
+        .ok_or(LordspotError::AirthMaticOverflow)?
+        .checked_div(PRECISE_UNIT)
+        .ok_or(LordspotError::AirthMaticUnderflow)? as u64;
+
+    // reserveRatio = 0 → no extra multiplication
+    Ok(max_prize)
+}

@@ -21,27 +21,30 @@ pub struct DrawingState {
 #[account]
 #[derive(InitSpace)]
 pub struct GlobalState {
-    // your existing fields stay exactly as they are
     pub switchboard_random_account: Pubkey,
-    pub bump:                       u8,
-    pub commit_slot:                u64,
-    pub rand_value:                 Option<[u8; 32]>,
-    
-    pub pool_total_cap:             u64,
-    pub current_epoch_id:           u64,
-    pub normal_marble_max:          u8,
-    pub ticket_price:               u64,
-    pub edge_per_ticket:            u64,
-    pub lp_target_percent:          u64,
-    pub lp_pool_cap:                u64,
-    pub special_ball_min:           u8,
-    pub allow_ticket_purchase:      bool,
-    pub protocol_usdc_vault_bump:   u8,
+    pub bump: u8,
+    pub commit_slot: u64,
+    pub rand_value: Option<[u8; 32]>,
 
-    // 👇 ADD THESE FOUR — this fixes errors 1 and 2
-    pub special_ball_hard_cap:      u8,
-    pub protocol_fee_rate:          u64,
-    pub drawing_duration:           u64,
+    pub pool_total_cap: u64,           // ← this is your governancePoolCap
+    pub current_epoch_id: u64,
+    pub normal_marble_max: u8,
+    pub ticket_price: u64,
+    pub edge_per_ticket: u64,
+    pub lp_target_percent: u64,        // lpEdgeTarget
+    pub lp_pool_cap: u64,              // ← this is the real lpPoolCap
+
+    pub special_ball_min: u8,
+    pub special_ball_hard_cap: u8,     // ← ADD
+    pub special_ball_soft_cap: u8,     // ← ADD (only used in init)
+
+    pub allow_ticket_purchase: bool,
+    pub protocol_usdc_vault_bump: u8,
+
+    // Protocol fee (we keep it even if 0%)
+    pub protocol_fee: u64,             // ← ADD
+    pub protocol_fee_threshold: u64,   // ← ADD
+    pub drawing_duration: u64,
 }
 
 #[account]

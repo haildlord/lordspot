@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use crate::constants::{ADMIN_PUBKEY, SEED_GLOBAL, SEED_DRAWING_STATE, SEED_LP_DRAWING_STATE, SEED_TALLY, PRECISE_UNIT, PREMIUM_TIER_WEIGHTS};
+use crate::constants::{ADMIN_PUBKEY, SEED_GLOBAL, SEED_DRAWING_STATE, SEED_LP_DRAWING_STATE, SEED_TALLY, PRECISE_UNIT, PROTOCOL_FEE};
 use switchboard_on_demand::accounts::RandomnessAccountData;
 use crate::error::LordspotError;
 use crate::state::{DrawingState, GlobalState, EpochIdToLPDrawingState, TallyState, TallyStatus, TicketAccount};
@@ -212,7 +212,7 @@ pub fn crank_tally_handler<'info>(
         let bonus_max  = ctx.accounts.drawing_state_account.special_marble_max;
         let prize_pool = ctx.accounts.drawing_state_account.prize_pool;
         let lp_earnings = ctx.accounts.drawing_state_account.lp_earnings;
-        let protocol_fee_rate = ctx.accounts.global_state_account.protocol_fee_rate;
+        let protocol_fee_rate = PROTOCOL_FEE;
 
         let ( _tier_winners, tier_payouts, _use_min, _min_alloc, total_user_winnings ) =
             calculate_tier_winners_and_payouts(

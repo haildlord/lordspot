@@ -34,6 +34,17 @@ pub const TREE_MAX_DEPTH:       u32   = 20;
 pub const TREE_MAX_BUFFER_SIZE: u32   = 64;  // concurrent updates allowed
 pub const TREE_CANOPY_DEPTH:    u32   = 0;   // 0 = cheapest, no canopy
 
+// === NEW CONSTANTS — exactly matching Solidity ===
+pub const BONUSBALL_SOFT_CAP: u8 = 65;     // used only for initial soft cap calculation
+pub const BONUSBALL_HARD_CAP: u8 = 80;
+
+pub const GOVERNANCE_POOL_CAP: u64 = 1_100_000 * 1_000_000; // 1.1M USDC (6 decimals)
+
+pub const PROTOCOL_FEE: u64 = 0;                    // they set 0% in live contract
+pub const PROTOCOL_FEE_THRESHOLD: u64 = 100_000_000_000; // 100k USDC (from Solidity)
+
+// We removed reserveRatio (you already did) and referral stuff
+
 
 // Add to the bottom of constants.rs
 pub const MIN_PAYOUT: u64 = 1_111_112;           // as in original Solidity

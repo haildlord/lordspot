@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use crate::constants::{ADMIN_PUBKEY, SEED_PER_EPOCH, SEED_GLOBAL, PRECISE_UNIT, SEED_LP_DRAWING_STATE, SEED_PROTOCOL_USDC_ACCOUNT, USDC_DEVNET_ADDRESS, SEED_DRAWING_STATE, SEED_TRACKER_PER_EPOCH, TOTAL_TIER_COUNT, SEED_BUCKET};
+use crate::constants::{ADMIN_PUBKEY, SEED_PER_EPOCH, SEED_GLOBAL, PRECISE_UNIT, SEED_LP_DRAWING_STATE, SEED_PROTOCOL_USDC_ACCOUNT, USDC_DEVNET_ADDRESS, SEED_DRAWING_STATE, BONUSBALL_SOFT_CAP, BONUSBALL_HARD_CAP, GOVERNANCE_POOL_CAP, PROTOCOL_FEE, PROTOCOL_FEE_THRESHOLD};
 use crate::state::{PerEpochState, GlobalState, EpochIdToLPDrawingState, DrawingState};
 use crate::error::LordspotError;
 use crate::utility::main::*;
@@ -8,64 +8,96 @@ use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 
 // ! i guess we need to store all the bumps -- i missed it I guess
-pub fn handler(ctx: Context<Initialize>, rngkp : Pubkey, normal_marble_max : u8, pool_total_cap : u64, ticket_price : u64, lp_target_percent : u64, special_ball_min : u8) -> Result<()> {
-    let global_state = &mut ctx.accounts.global_state_account;
+pub fn handler(
+    ctx: Context<Initialize>,
+    rngkp: Pubkey,
+    normal_marble_max: u8,
+    // We no longer need pool_total_cap as param — we hardcode the governance cap
+    ticket_price: u64,
+    lp_target_percent: u64,
+    special_ball_min: u8,
+) -> Result<()> {
+    let global = &mut ctx.accounts.global_state_account;
+
+    global.switchboard_random_account = rngkp;
+    global.bump = ctx.bumps.global_state_account;
+    global.protocol_usdc_vault_bump = ctx.bumps.protocol_usdc_vault;
+
+    global.normal_marble_max = normal_marble_max; // 30
+    global.current_epoch_id = 0;
+    global.ticket_price = ticket_price; // 1e6
+    global.lp_target_percent = lp_target_percent; // 30%
+    global.special_ball_min = special_ball_min; // 5
+    global.special_ball_soft_cap = BONUSBALL_SOFT_CAP;
+    global.special_ball_hard_cap = BONUSBALL_HARD_CAP;
+
+    // Governance cap (1.1M USDC)
+    global.pool_total_cap = GOVERNANCE_POOL_CAP;
+
+    global.edge_per_ticket = (lp_target_percent as u128)
+        .checked_mul(ticket_price as u128)
+        .ok_or(LordspotError::AirthMaticOverflow)?
+        .checked_div(PRECISE_UNIT as u128)
+        .ok_or(LordspotError::AirthMaticUnderflow)? as u64;
+
+    global.protocol_fee = PROTOCOL_FEE;
+    global.protocol_fee_threshold = PROTOCOL_FEE_THRESHOLD;
+
+    // Per-epoch state
     let epoch_state = &mut ctx.accounts.per_epoch_state_account;
-    let lp_drawing_state  = &mut ctx.accounts.drawing_id_to_lp_drawing_state;
-
-    global_state.switchboard_random_account = rngkp;
-    global_state.rand_value = None;
-    global_state.bump = ctx.bumps.global_state_account;
-    
-    global_state.protocol_usdc_vault_bump = ctx.bumps.protocol_usdc_vault;
-
-    global_state.normal_marble_max = normal_marble_max; // 30
-    global_state.current_epoch_id = 0;
-    global_state.pool_total_cap = pool_total_cap; //
-    global_state.ticket_price = ticket_price; // 1e6 -- USDC
-    global_state.lp_target_percent = lp_target_percent; //
-    global_state.special_ball_min = special_ball_min; // 5
-    global_state.edge_per_ticket = (lp_target_percent as u128).checked_mul(ticket_price as u128).ok_or(LordspotError::AirthMaticOverflow)?.checked_div(PRECISE_UNIT as u128).ok_or(LordspotError::AirthMaticUnderflow)? as u64;
-
     epoch_state.epoch_id = 0;
     epoch_state.shares_percentage = PRECISE_UNIT;
+    epoch_state.bump = ctx.bumps.per_epoch_state_account;
 
+    // LP state for epoch 0
+    let lp_state = &mut ctx.accounts.drawing_id_to_lp_drawing_state;
+    lp_state.bump = ctx.bumps.drawing_id_to_lp_drawing_state;
 
+    // Calculate and set initial LP pool cap (exactly like Solidity)
+    let soft_cap = calculate_lp_pool_soft_cap(
+        normal_marble_max,
+        ticket_price,
+        lp_target_percent,
+    )?;
+    let final_cap = soft_cap.min(GOVERNANCE_POOL_CAP);
 
-    let calc_lp_pool_cap = calculate_lp_pool_cap(normal_marble_max, ticket_price, lp_target_percent, pool_total_cap);
+    set_lp_pool_cap(
+        &mut global.lp_pool_cap,
+        lp_state.pending_deposits,
+        lp_state.lp_pool_total,
+        final_cap,
+    )?;
 
-    lp_drawing_state.bump = ctx.bumps.drawing_id_to_lp_drawing_state;
-
-
-    set_lp_pool_cap(&mut global_state.lp_pool_cap, lp_drawing_state.pending_deposits, lp_drawing_state.lp_pool_total, calc_lp_pool_cap.ok_or(LordspotError::AirthMaticOverflow)?)?;
-
-
-    msg!("✅ [INITIALIZE] PDA created at: {:?}", global_state.key());
-    msg!("✅ [INITIALIZE] Linked to Switchboard account: {:?}", global_state.switchboard_random_account);
     Ok(())
 }
+
 
 pub fn close_handler(_ctx: Context<CloseState>) -> Result<()> {
     msg!("💀 [CLOSE] State deleted. SOL returned to Admin.");
     Ok(())
 }
 
-pub fn init_lordspot_handler(ctx : Context<InitializeLordsPot>, ini_drawing_time : u64) -> Result<()> {
-
-    ctx.accounts.global_state_account.allow_ticket_purchase = true;
+pub fn init_lordspot_handler(ctx: Context<InitializeLordsPot>, ini_drawing_time: u64) -> Result<()> {
+    let global = &mut ctx.accounts.global_state_account;
+    global.allow_ticket_purchase = true;
 
     let (new_lp_value, _) = process_drawing_settlement(
-        &ctx.accounts.global_state_account,
+        global,
         &ctx.accounts.drawing_id_to_lp_drawing_state,
         &ctx.accounts.drawing_state_account,
         &mut ctx.accounts.per_epoch_state_account,
         &ctx.accounts.prev_per_epoch_state_account,
-        0,
-        0
+        0,   // user_winnings
+        0,   // protocol_fee
     )?;
 
-    _set_new_drawing_state(&mut ctx.accounts.global_state_account, &mut ctx.accounts.next_drawing_id_to_lp_drawing_state, &mut ctx.accounts.next_drawing_state_account,new_lp_value, ini_drawing_time)?;
-
+    _set_new_drawing_state(
+        global,
+        &mut ctx.accounts.next_drawing_id_to_lp_drawing_state,
+        &mut ctx.accounts.next_drawing_state_account,
+        new_lp_value,
+        ini_drawing_time,
+    )?;
 
     Ok(())
 }
