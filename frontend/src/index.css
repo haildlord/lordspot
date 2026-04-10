@@ -1,4 +1,41 @@
-body, html {
-  margin: 0;
-  padding: 0;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-white font-sans;
+  }
+}
+
+@layer utilities {
+  .neon-purple {
+    text-shadow:
+            0 0 10px rgb(168 85 247),
+            0 0 20px rgb(168 85 247),
+            0 0 40px rgb(168 85 247);
+  }
+
+  .glass {
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(20px);
+  }
+
+  .jackpot-glow {
+    animation: jackpotPulse 3s ease-in-out infinite;
+  }
+
+  .lottery-ball {
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .lottery-ball:hover {
+    transform: scale(1.2) rotate(12deg);
+    box-shadow: 0 0 40px 15px rgb(234 179 8);
+  }
+}
+
+@keyframes jackpotPulse {
+  0%, 100% { text-shadow: 0 0 20px rgb(234 179 8); }
+  50% { text-shadow: 0 0 80px rgb(234 179 8), 0 0 120px rgb(234 179 8); }
 }

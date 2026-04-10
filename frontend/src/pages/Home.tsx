@@ -1,41 +1,49 @@
-import { Link } from 'react-router-dom';
-
 export const Home = () => {
-    // Mock data - replace with your Anchor program fetch later
-    const currentPrize = "1,250,000";
+    const currentPrize = "2,847,650";
 
     return (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="inline-block px-4 py-1.5 rounded-full border border-purple-500/30 bg-purple-500/10 text-purple-300 text-sm font-semibold tracking-wide mb-8 animate-pulse">
-                🟢 LIVE DRAWING IN PROGRESS
+        <div className="flex flex-col items-center justify-center text-center pt-12">
+            {/* Live Badge */}
+            <div className="inline-flex items-center gap-2 px-6 py-2.5 rounded-3xl border border-amber-400/30 bg-amber-400/10 text-amber-300 text-sm font-bold tracking-[2px] mb-8">
+                <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
+                LIVE DRAWING • 4H 12M LEFT
             </div>
 
-            <h2 className="text-6xl md:text-8xl font-black text-white mb-4 tracking-tighter">
-                $<span className="bg-gradient-to-b from-white to-slate-400 bg-clip-text text-transparent">{currentPrize}</span>
-            </h2>
-            <p className="text-xl text-slate-400 mb-12 max-w-lg">
-                The ultimate on-chain lottery. 5 Numbers. 1 Lord Ball. Win the USDC Megapot.
+            {/* Jackpot */}
+            <div className="mb-6">
+                <p className="text-amber-300 text-xl font-medium tracking-widest mb-2">CURRENT JACKPOT</p>
+                <h1 className="text-8xl md:text-[9rem] font-black tracking-tighter jackpot-glow">
+                    $<span className="bg-clip-text text-transparent bg-gradient-to-b from-amber-300 via-white to-amber-400">{currentPrize}</span>
+                </h1>
+            </div>
+
+            <p className="text-2xl text-slate-400 max-w-2xl mb-16">
+                5 numbers + 1 Lord Ball.<br />
+                <span className="text-purple-400">One winner takes it all on Solana.</span>
             </p>
 
-            <div className="grid grid-cols-3 gap-6 mb-12 text-left">
-                <StatCard label="Ticket Price" value="5 USDC" />
-                <StatCard label="Tickets Sold" value="42,105" />
-                <StatCard label="Time Left" value="04:12:59" />
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-8 max-w-2xl w-full mb-16">
+                <div className="text-center">
+                    <p className="text-slate-500 text-sm">TICKET PRICE</p>
+                    <p className="text-4xl font-bold text-white">5 USDC</p>
+                </div>
+                <div className="text-center">
+                    <p className="text-slate-500 text-sm">TICKETS SOLD</p>
+                    <p className="text-4xl font-bold text-white">87,420</p>
+                </div>
+                <div className="text-center">
+                    <p className="text-slate-500 text-sm">NEXT DRAW</p>
+                    <p className="text-4xl font-bold text-amber-400">04:12:59</p>
+                </div>
             </div>
 
-            <Link
-                to="/buy"
-                className="px-10 py-5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl font-bold text-lg shadow-[0_0_40px_rgba(147,51,234,0.4)] hover:shadow-[0_0_60px_rgba(147,51,234,0.6)] transition-all hover:-translate-y-1"
+            <a
+                href="/buy"
+                className="px-16 py-7 bg-gradient-to-r from-purple-600 to-amber-500 hover:from-purple-500 hover:to-amber-400 text-2xl font-black rounded-3xl shadow-2xl shadow-purple-500/50 hover:scale-105 transition-all active:scale-95"
             >
-                Get Your Tickets Now
-            </Link>
+                CLAIM YOUR TICKET NOW →
+            </a>
         </div>
     );
 };
-
-const StatCard = ({ label, value }: { label: string, value: string }) => (
-    <div className="bg-slate-900/50 border border-white/5 rounded-xl p-6 backdrop-blur-sm">
-        <p className="text-slate-500 text-sm font-medium mb-1 uppercase tracking-wider">{label}</p>
-        <p className="text-2xl font-bold text-white">{value}</p>
-    </div>
-);
