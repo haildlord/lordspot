@@ -1,6 +1,8 @@
 use anchor_lang::prelude::*;
 
 pub const ADMIN_PUBKEY : Pubkey = pubkey!("H8Q7CUvPigtSxfd13TKRuFrwdJtc6pJu9BMNhbXF9yAY"); // ! Change this to your Origitnal Phantaom Wallet Key
+pub const DEVNET_ADMIN_PUBKEY : Pubkey = pubkey!("HpAYk14jYpomivS4F7oXySN81sdoPvTaHtFsPgiK2jzf");
+
 pub const USDC_DEVNET_ADDRESS: Pubkey = pubkey!("4zMMC9srt5RiG2Ck7rrRK9UKVv2vS3Z22nBskqfPAnzD");
 
 pub const PRECISE_UNIT : u64 = 1_000_000_000_000; // 1e12 or 10^12
