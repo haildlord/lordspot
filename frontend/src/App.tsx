@@ -5,6 +5,8 @@ import { WalletModalProvider, WalletMultiButton } from '@solana/wallet-adapter-r
 import { PhantomWalletAdapter } from '@solana/wallet-adapter-wallets';
 import { clusterApiUrl } from '@solana/web3.js';
 import '@solana/wallet-adapter-react-ui/styles.css';
+import { Faucet } from './pages/Faucet';
+import { Toaster } from 'react-hot-toast';
 
 import { Home } from './pages/Home';
 import { BuyTickets } from './pages/BuyTickets';
@@ -42,11 +44,14 @@ export const App = () => {
                             </nav>
 
                             {/* Main Content */}
+                            <Toaster position="bottom-right" reverseOrder={false} />
                             <main className="max-w-7xl mx-auto px-6 pt-8 pb-20">
                                 <Routes>
                                     <Route path="/" element={<Home />} />
                                     <Route path="/buy" element={<BuyTickets />} />
+                                    <Route path="/faucet" element={<Faucet />} />
                                     <Route path="/my-tickets" element={<MyTickets />} />
+
                                 </Routes>
                             </main>
 
@@ -65,6 +70,7 @@ const NavLinks = () => {
     const links = [
         { path: '/', label: 'GRAND PRIZE' },
         { path: '/buy', label: 'PLAY NOW' },
+        { path: '/faucet', label: 'FAUCET' },
         { path: '/my-tickets', label: 'MY VAULT' }
     ];
 
