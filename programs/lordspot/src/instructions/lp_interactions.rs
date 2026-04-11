@@ -1,9 +1,9 @@
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token_interface::{Mint, TokenInterface, TokenAccount, TransferChecked, transfer_checked};
-use crate::constants::{USDC_DEVNET_ADDRESS, SEED_GLOBAL, SEED_PROTOCOL_USDC_ACCOUNT, SEED_LP_INFO, SEED_LP_DRAWING_STATE, SEED_PER_EPOCH};
+use crate::constants::{MOCK_USDC_DEVNET_ADDRESS, SEED_GLOBAL, SEED_PROTOCOL_USDC_ACCOUNT, SEED_LP_INFO, SEED_LP_DRAWING_STATE, SEED_PER_EPOCH, SEED_DRAWING_STATE};
 use crate::error::LordspotError;
-use crate::state::{EpochIdToLPDrawingState, GlobalState, PerEpochState};
+use crate::state::{DrawingState, EpochIdToLPDrawingState, GlobalState, PerEpochState};
 use crate::state::lp_related_state::LPInfo;
 use crate::utility::lp_related_utility::process_deposit;
 
@@ -42,7 +42,7 @@ pub struct LpDeposit<'info>{
     pub signer : Signer<'info>,
 
     #[account(
-        address = USDC_DEVNET_ADDRESS @ LordspotError::InvalidMintAddress
+        address = MOCK_USDC_DEVNET_ADDRESS @ LordspotError::InvalidMintAddress
     )]
     pub usdc_mint: InterfaceAccount<'info, Mint>,
 
@@ -52,6 +52,13 @@ pub struct LpDeposit<'info>{
         bump = global_state_account.bump
     )]
     pub global_state_account: Account<'info, GlobalState>,
+
+    #[account(
+        seeds = [SEED_DRAWING_STATE,  global_state_account.current_epoch_id.to_le_bytes().as_ref()],
+        bump,
+        constraint = drawing_state_account.lordspot_lock == false @ LordspotError::LordspotLocked
+    )]
+    pub drawing_state_account : Account<'info, DrawingState>,
 
     #[account(
         seeds = [SEED_LP_DRAWING_STATE, global_state_account.current_epoch_id.to_le_bytes().as_ref()],

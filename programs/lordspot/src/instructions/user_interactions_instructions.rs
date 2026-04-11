@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface, TransferChecked, transfer_checked};
 use crate::state::{GlobalState, DrawingState, TallyStatus, TallyState, TicketAccount};
-use crate::constants::{ SEED_GLOBAL, SEED_DRAWING_STATE, USDC_DEVNET_ADDRESS, SEED_PROTOCOL_USDC_ACCOUNT, SEED_TALLY, SEED_TICKET};
+use crate::constants::{ SEED_GLOBAL, SEED_DRAWING_STATE, MOCK_USDC_DEVNET_ADDRESS, SEED_PROTOCOL_USDC_ACCOUNT, SEED_TALLY, SEED_TICKET};
 use crate::error::LordspotError;
 use crate::utility::user_related_utility::*;
 
@@ -213,7 +213,7 @@ pub struct BuyTicket<'info> {
 
 
     #[account(
-        address = USDC_DEVNET_ADDRESS @ LordspotError::InvalidMintAddress
+        address = MOCK_USDC_DEVNET_ADDRESS @ LordspotError::InvalidMintAddress
     )]
     pub usdc_mint: InterfaceAccount<'info, Mint>,
 
@@ -299,12 +299,12 @@ pub struct ClaimRewards<'info> {
             @ LordspotError::InvalidEpochId,
         constraint = !ticket_account.claimed
             @ LordspotError::AlreadyClaimed,
-        close = signer,  // 👈 closes account, returns rent to signer
+        close = signer,
     )]
     pub ticket_account: Account<'info, TicketAccount>,
 
     #[account(
-        address = USDC_DEVNET_ADDRESS @ LordspotError::InvalidMintAddress
+        address = MOCK_USDC_DEVNET_ADDRESS @ LordspotError::InvalidMintAddress
     )]
     pub usdc_mint: InterfaceAccount<'info, Mint>,
 

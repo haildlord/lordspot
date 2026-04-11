@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use crate::constants::{ADMIN_PUBKEY, SEED_PER_EPOCH, SEED_GLOBAL, PRECISE_UNIT, SEED_LP_DRAWING_STATE, SEED_PROTOCOL_USDC_ACCOUNT, USDC_DEVNET_ADDRESS, SEED_DRAWING_STATE, BONUSBALL_SOFT_CAP, BONUSBALL_HARD_CAP, GOVERNANCE_POOL_CAP, PROTOCOL_FEE, PROTOCOL_FEE_THRESHOLD};
+use crate::constants::{ADMIN_PUBKEY, SEED_PER_EPOCH, SEED_GLOBAL, PRECISE_UNIT, SEED_LP_DRAWING_STATE, SEED_PROTOCOL_USDC_ACCOUNT, MOCK_USDC_DEVNET_ADDRESS, SEED_DRAWING_STATE};
 use crate::state::{PerEpochState, GlobalState, EpochIdToLPDrawingState, DrawingState};
 use crate::error::LordspotError;
 use crate::utility::main::*;
@@ -7,73 +7,56 @@ use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 
-// ! i guess we need to store all the bumps -- i missed it I guess
-pub fn handler(
+pub fn handler_init(
     ctx: Context<Initialize>,
     rngkp: Pubkey,
     normal_marble_max: u8,
-    // We no longer need pool_total_cap as param — we hardcode the governance cap
+    pool_total_cap: u64,
     ticket_price: u64,
     lp_target_percent: u64,
     special_ball_min: u8,
+    special_ball_soft_cap: u8,
+    special_ball_hard_cap: u8,
+    protocol_fee: u64,
+    protocol_fee_threshold: u64,
 ) -> Result<()> {
     let global = &mut ctx.accounts.global_state_account;
 
-    global.switchboard_random_account = rngkp;
-    global.bump = ctx.bumps.global_state_account;
-    global.protocol_usdc_vault_bump = ctx.bumps.protocol_usdc_vault;
+    initialize_global_config(
+        global,
+        rngkp,
+        normal_marble_max,
+        pool_total_cap,
+        ticket_price,
+        lp_target_percent,
+        special_ball_min,
+        special_ball_soft_cap,
+        special_ball_hard_cap,
+        protocol_fee,
+        protocol_fee_threshold,
+        ctx.bumps.global_state_account,
+        ctx.bumps.protocol_usdc_vault,
+    )?;
 
-    global.normal_marble_max = normal_marble_max; // 30
-    global.current_epoch_id = 0;
-    global.ticket_price = ticket_price; // 1e6
-    global.lp_target_percent = lp_target_percent; // 30%
-    global.special_ball_min = special_ball_min; // 5
-    global.special_ball_soft_cap = BONUSBALL_SOFT_CAP;
-    global.special_ball_hard_cap = BONUSBALL_HARD_CAP;
-
-    // Governance cap (1.1M USDC)
-    global.pool_total_cap = GOVERNANCE_POOL_CAP;
-
-    global.edge_per_ticket = (lp_target_percent as u128)
-        .checked_mul(ticket_price as u128)
-        .ok_or(LordspotError::AirthMaticOverflow)?
-        .checked_div(PRECISE_UNIT as u128)
-        .ok_or(LordspotError::AirthMaticUnderflow)? as u64;
-
-    global.protocol_fee = PROTOCOL_FEE;
-    global.protocol_fee_threshold = PROTOCOL_FEE_THRESHOLD;
-
-    // Per-epoch state
+    // ── Initialize Per-Epoch State ───────────────────────────────
     let epoch_state = &mut ctx.accounts.per_epoch_state_account;
-    epoch_state.epoch_id = 0;
-    epoch_state.shares_percentage = PRECISE_UNIT;
-    epoch_state.bump = ctx.bumps.per_epoch_state_account;
+    initialize_epoch_state(epoch_state, ctx.bumps.per_epoch_state_account)?;
 
-    // LP state for epoch 0
+    // ── Initialize LP State (bump only) ──────────────────────────
     let lp_state = &mut ctx.accounts.drawing_id_to_lp_drawing_state;
     lp_state.bump = ctx.bumps.drawing_id_to_lp_drawing_state;
 
-    // Calculate and set initial LP pool cap (exactly like Solidity)
-    let soft_cap = calculate_lp_pool_soft_cap(
+    // ── Calculate & Set Initial LP Pool Cap ─
+    initialize_lp_pool_cap(
+        global,
+        lp_state,
         normal_marble_max,
         ticket_price,
         lp_target_percent,
-    )?;
-    let final_cap = soft_cap.min(GOVERNANCE_POOL_CAP);
-
-    set_lp_pool_cap(
-        &mut global.lp_pool_cap,
-        lp_state.pending_deposits,
-        lp_state.lp_pool_total,
-        final_cap,
+        special_ball_soft_cap,
+        pool_total_cap,
     )?;
 
-    Ok(())
-}
-
-
-pub fn close_handler(_ctx: Context<CloseState>) -> Result<()> {
-    msg!("💀 [CLOSE] State deleted. SOL returned to Admin.");
     Ok(())
 }
 
@@ -122,6 +105,25 @@ pub struct Initialize<'info> {
     #[account(
         init,
         payer = signer,
+        space = 8 + DrawingState::INIT_SPACE,
+        seeds = [SEED_DRAWING_STATE, 0u64.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub drawing_state_account : Account<'info, DrawingState>,
+
+    #[account(
+        init,
+        payer = signer,
+        space = 8 + DrawingState::INIT_SPACE,
+        seeds = [SEED_DRAWING_STATE, 1u64.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub next_drawing_state_account : Account<'info, DrawingState>,
+
+
+    #[account(
+        init,
+        payer = signer,
         space = 8 + PerEpochState::INIT_SPACE,
         seeds = [SEED_PER_EPOCH, 0u64.to_le_bytes().as_ref()],
         bump
@@ -138,7 +140,7 @@ pub struct Initialize<'info> {
     pub drawing_id_to_lp_drawing_state : Account<'info, EpochIdToLPDrawingState>,
 
     #[account(
-        address = USDC_DEVNET_ADDRESS @ LordspotError::InvalidMintAddress
+        address = MOCK_USDC_DEVNET_ADDRESS @ LordspotError::InvalidMintAddress
     )]
     pub usdc_mint: InterfaceAccount<'info, Mint>,
 
@@ -199,38 +201,19 @@ pub struct InitializeLordsPot<'info> {
     pub next_drawing_id_to_lp_drawing_state : Account<'info, EpochIdToLPDrawingState>,
 
     #[account(
-        init,
-        payer = signer,
-        space = 8 + DrawingState::INIT_SPACE,
-        seeds = [SEED_DRAWING_STATE],
+        mut,
+        seeds = [SEED_DRAWING_STATE, 0u64.to_le_bytes().as_ref()],
         bump
     )]
     pub drawing_state_account : Account<'info, DrawingState>,
 
     #[account(
-        init,
-        payer = signer,
-        space = 8 + DrawingState::INIT_SPACE,
+        mut,
         seeds = [SEED_DRAWING_STATE, 1u64.to_le_bytes().as_ref()],
         bump
     )]
     pub next_drawing_state_account : Account<'info, DrawingState>,
 
     pub system_program : Program<'info, System>,
-}
-
-#[derive(Accounts)]
-pub struct CloseState<'info> {
-    #[account(
-        mut,
-        close = signer,
-        seeds = [SEED_GLOBAL],
-        bump = global_state_account.bump,
-        address = ADMIN_PUBKEY @ LordspotError::InvalidOwner
-    )]
-    pub global_state_account: Account<'info, GlobalState>,
-
-    #[account(mut)]
-    pub signer: Signer<'info>,
 }
 

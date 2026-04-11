@@ -22,6 +22,7 @@ pub fn _consolidate_deposits(per_epoch_state_account : &mut Account<LPInfo>, _pe
     Ok(())
 }
 
+// # lp_deposit()
 pub fn process_deposit(global_state : &Account<GlobalState>, epoch_to_lp_drawingstate : &mut Account<EpochIdToLPDrawingState>, lp_info_account : &mut Account<LPInfo>, per_epoch_state_account : &Account<PerEpochState>, _amount : u64) -> Result<()> {
 
     let total_pool_values : u64 = epoch_to_lp_drawingstate.lp_pool_total.checked_add(epoch_to_lp_drawingstate.pending_deposits).and_then(|sum| sum.checked_add(_amount)).ok_or(LordspotError::AirthMaticOverflow)?;
