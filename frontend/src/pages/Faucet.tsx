@@ -20,7 +20,6 @@ export const Faucet = () => {
     const MAX_PER_WALLET = 30000;
     const remaining = MAX_PER_WALLET - userMinted;
 
-    // ==================== DEBUG: Check current mint authority ====================
     const checkMintAuthority = async () => {
         if (!program) return;
         try {
@@ -66,7 +65,7 @@ export const Faucet = () => {
                     associatedTokenProgram: new PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"),
                     systemProgram: SystemProgram.programId,
                 })
-                .rpc({ skipPreflight: true });   // ←←← THIS IS THE IMPORTANT CHANGE
+                .rpc({ skipPreflight: true });
 
             toast.success(`✅ ${requestedAmount} lUSDC Minted!`, { id: toastId });
             setUserMinted(prev => prev + requestedAmount);
@@ -80,46 +79,48 @@ export const Faucet = () => {
     };
 
     return (
-        <div className="max-w-2xl mx-auto pt-12">
-            <div className="glass rounded-3xl p-10 border border-amber-400/30">
-                <h2 className="text-5xl font-black mb-2 text-center">🪙 LORDS USDC FAUCET</h2>
-                <p className="text-slate-400 text-center mb-10">Free test tokens for LordsPot</p>
+        <div className="max-w-2xl mx-auto pt-6 md:pt-12 px-2 sm:px-0">
+            <div className="glass rounded-2xl md:rounded-3xl p-6 md:p-10 border border-amber-400/30">
+                <h2 className="text-3xl md:text-5xl font-black mb-2 text-center break-words">🪙 LORDS USDC FAUCET</h2>
+                <p className="text-slate-400 text-center mb-8 md:mb-10 text-sm md:text-base">Free test tokens for LordsPot</p>
 
                 {!connected ? (
-                    <div className="text-center py-12 text-slate-400 text-xl">
+                    <div className="text-center py-12 text-slate-400 text-lg md:text-xl">
                         Connect wallet to access faucet
                     </div>
                 ) : (
                     <>
-                        <button
-                            onClick={checkMintAuthority}
-                            className="text-xs mb-6 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl"
-                        >
-                            🔍 Debug Mint Authority
-                        </button>
+                        <div className="flex justify-center w-full">
+                            <button
+                                onClick={checkMintAuthority}
+                                className="text-xs mb-6 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-center"
+                            >
+                                🔍 Debug Mint Authority
+                            </button>
+                        </div>
 
-                        <div className="grid grid-cols-2 gap-8 mb-10">
-                            <div>
-                                <p className="text-sm text-slate-400">TOTAL MINTED BY YOU</p>
-                                <p className="text-6xl font-bold text-amber-400">{userMinted}</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 md:gap-8 mb-8 md:mb-10 text-center sm:text-left">
+                            <div className="bg-slate-900/40 p-4 rounded-xl sm:bg-transparent sm:p-0">
+                                <p className="text-xs md:text-sm text-slate-400">TOTAL MINTED BY YOU</p>
+                                <p className="text-5xl md:text-6xl font-bold text-amber-400">{userMinted}</p>
                             </div>
-                            <div>
-                                <p className="text-sm text-slate-400">REMAINING ALLOWANCE</p>
-                                <p className="text-6xl font-bold text-white">{remaining}</p>
-                                <p className="text-xs text-slate-500">of 30,000 lUSDC (Session)</p>
+                            <div className="bg-slate-900/40 p-4 rounded-xl sm:bg-transparent sm:p-0">
+                                <p className="text-xs md:text-sm text-slate-400">REMAINING ALLOWANCE</p>
+                                <p className="text-5xl md:text-6xl font-bold text-white">{remaining}</p>
+                                <p className="text-[10px] md:text-xs text-slate-500 mt-1">of 30,000 lUSDC (Session)</p>
                             </div>
                         </div>
 
                         <div className="mb-8">
-                            <label className="block text-sm font-medium mb-3 text-slate-400">Amount to mint</label>
-                            <div className="flex gap-3">
+                            <label className="block text-sm font-medium mb-3 text-slate-400 text-center sm:text-left">Amount to mint</label>
+                            <div className="grid grid-cols-2 sm:flex gap-3">
                                 {[5000, 10000, 20000, 30000].map((amt) => (
                                     <button
                                         key={amt}
                                         onClick={() => setRequestedAmount(amt)}
                                         disabled={amt > remaining}
-                                        className={`flex-1 py-4 rounded-2xl font-bold transition-all ${
-                                            requestedAmount === amt ? "bg-amber-400 text-slate-950" : "bg-slate-800 hover:bg-slate-700 text-white"
+                                        className={`flex-1 py-3 md:py-4 rounded-xl md:rounded-2xl font-bold text-sm md:text-base transition-all ${
+                                            requestedAmount === amt ? "bg-amber-400 text-slate-950 shadow-lg shadow-amber-400/20" : "bg-slate-800 hover:bg-slate-700 text-white"
                                         } disabled:opacity-30`}
                                     >
                                         {amt}
@@ -131,7 +132,7 @@ export const Faucet = () => {
                         <button
                             onClick={handleMint}
                             disabled={loading || remaining <= 0 || requestedAmount > remaining}
-                            className="w-full py-7 text-2xl font-black bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 rounded-3xl hover:scale-105 transition-all disabled:opacity-50"
+                            className="w-full py-5 md:py-7 text-lg md:text-2xl font-black bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 rounded-2xl md:rounded-3xl hover:scale-105 transition-all disabled:opacity-50 shadow-xl shadow-amber-500/20"
                         >
                             {loading ? "MINTING ON SOLANA..." : `MINT ${requestedAmount} lUSDC`}
                         </button>
