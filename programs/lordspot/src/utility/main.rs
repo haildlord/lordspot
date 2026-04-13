@@ -4,6 +4,21 @@ use crate::constants::{NORMAL_SELECTABLE_MARBLE_COUNT, PRECISE_UNIT};
 use crate::error::LordspotError;
 use crate::state::{DrawingState, EpochIdToLPDrawingState, GlobalState, PerEpochState};
 
+
+/// Exactly matches Solidity _calculateNextDrawingLpPool
+// # lp_deposit()
+pub fn calculate_next_drawing_lp_pool(
+    lp_pool_total: u64,
+    pending_deposits: u64,
+    pending_withdrawals_in_usdc: u64,
+) -> Result<u64> {
+    lp_pool_total
+        .checked_add(pending_deposits)
+        .and_then(|sum| sum.checked_sub(pending_withdrawals_in_usdc))
+        .ok_or(Error::from(ProgramError::ArithmeticOverflow))
+}
+
+
 // # handler()
 pub fn calculate_edge_per_ticket(
     lp_target_percent: u64,
@@ -75,29 +90,28 @@ pub fn initialize_epoch_state(
 }
 
 // # handler()
-// =============================================================
-// 2. Updated set_lp_pool_cap — now matches Solidity exactly for init
 pub fn set_lp_pool_cap(
     state_lp_pool_cap: &mut u64,           // global.lp_pool_cap
-    lp_soft_cap: u64,                      // the theoretical soft cap
+    lp_soft_cap: u64,                      // theoretical soft cap (65-based)
     lp_pool_total: u64,
     pending_deposits: u64,
+    pending_withdrawals_in_usdc: u64,      // ← NEW: 0 for init & epoch 0
     calc_lp_pool_cap: u64,                 // governance cap after min()
 ) -> Result<()> {
 
-    // Step 1: Calculate what the "next drawing LP pool" would be
-    // ! pendingWithdrawalsInUSDC calc & substraction from next_drawing_lp_pool missing ! -- should be done when withdrawals is also implimented
-    let next_drawing_lp_pool = lp_pool_total
-        .checked_add(pending_deposits)
-        .ok_or(ProgramError::ArithmeticOverflow)?;
+    let next_drawing_lp_pool = calculate_next_drawing_lp_pool(
+        lp_pool_total,
+        pending_deposits,
+        pending_withdrawals_in_usdc,
+    )?;
 
-    // Step 2: Soft-cap safety (this was missing)
+    // Soft-cap safety (this was the missing piece)
     require!(
         lp_soft_cap > next_drawing_lp_pool,
         LordspotError::InvalidLPSoftCap
     );
 
-    // Step 3: Governance cap safety (only if it changed — but we always set it on init)
+    // Governance cap safety
     require!(
         calc_lp_pool_cap >= next_drawing_lp_pool,
         LordspotError::InvalidLPPoolCap
@@ -145,7 +159,7 @@ pub fn initialize_lp_pool_cap(
     special_ball_soft_cap: u8,
     pool_total_cap: u64,
 ) -> Result<()> {
-    // Calculate soft cap (max theoretical prize pool)
+
     let soft_cap = calculate_lp_pool_soft_cap(
         normal_marble_max,
         ticket_price,
@@ -153,15 +167,15 @@ pub fn initialize_lp_pool_cap(
         special_ball_soft_cap,
     )?;
 
-    // Take the minimum of soft cap and governance hard cap
     let final_cap = soft_cap.min(pool_total_cap);
 
-    // Set the cap with safety check
+    // For initialization → withdrawalsInUSDC = 0
     set_lp_pool_cap(
         &mut global.lp_pool_cap,
         soft_cap,
         lp_state.lp_pool_total,
         lp_state.pending_deposits,
+        0,
         final_cap,
     )?;
 

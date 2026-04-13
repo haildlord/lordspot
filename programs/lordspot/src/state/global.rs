@@ -6,15 +6,17 @@ use crate::error::LordspotError;
 #[account]
 #[derive(InitSpace)]
 pub struct DrawingState {
-    pub prize_pool : u64,
-    pub lp_earnings : u64, // is set to 0 in start of every epoch
-    pub special_marble_max : u8, // is decided on start of each epoch based on the liquidity in the poll at the start of the epoch
-    pub drawing_time : u64,
-    pub winning_ticket : u64,
-    pub lordspot_lock : bool,
-    pub total_tickets: u64,
+    // ── 8-byte aligned fields first (u64) ─────────────────────
+    pub prize_pool:      u64,   // 8
+    pub lp_earnings:     u64,   // 8
+    pub drawing_time:    u64,   // 8
+    pub winning_ticket:  u64,   // 8
+    pub total_tickets:   u64,   // 8 ← total 40 bytes
 
-    pub bump : u8,
+    // ── Small fields grouped together at the end ─────────────
+    pub special_marble_max: u8,     // 1
+    pub lordspot_lock:      bool,   // 1
+    pub bump:               u8,     // 1 ← total 3 bytes
 }
 
 #[account]

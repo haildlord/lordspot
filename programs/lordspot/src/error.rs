@@ -136,5 +136,9 @@ pub enum LordspotError {
     InvalidLPSoftCap,
 
     #[msg("current epoch's drawing state's is locked")]
-    LordspotLocked
+    LordspotLocked,
+
+    #[msg("Invalid previous epoch ID")]
+    InvalidPreviousEpochId,
+
 }
