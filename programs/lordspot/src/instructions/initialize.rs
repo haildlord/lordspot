@@ -5,7 +5,7 @@ use crate::error::LordspotError;
 use crate::utility::main::*;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
-
+// ! in this page we have used ADMIN_PUBKEY when deploying use : DEVNET_ADMIN_PUBKEY
 
 pub fn handler_init(
     ctx: Context<Initialize>,
@@ -60,14 +60,19 @@ pub fn handler_init(
     Ok(())
 }
 
-pub fn init_lordspot_handler(ctx: Context<InitializeLordsPot>, ini_drawing_time: u64) -> Result<()> {
+pub fn init_lordspot_handler(ctx: Context<InitializeLordsPot>, init_drawing_time: u64) -> Result<()> {
+
     let global = &mut ctx.accounts.global_state_account;
     global.allow_ticket_purchase = true;
+
+    // save the bumps for both the init accounts
+    ctx.accounts.next_drawing_id_to_lp_drawing_state.bump = ctx.bumps.next_drawing_id_to_lp_drawing_state;
+    ctx.accounts.next_drawing_state_account.bump = ctx.bumps.next_drawing_state_account;
 
     let (new_lp_value, _) = process_drawing_settlement(
         global,
         &ctx.accounts.drawing_id_to_lp_drawing_state,
-        &ctx.accounts.drawing_state_account,
+        0,    // is 0 only because current_epoch_id == 0
         &mut ctx.accounts.per_epoch_state_account,
         &ctx.accounts.prev_per_epoch_state_account,
         0,   // user_winnings
@@ -79,7 +84,7 @@ pub fn init_lordspot_handler(ctx: Context<InitializeLordsPot>, ini_drawing_time:
         &mut ctx.accounts.next_drawing_id_to_lp_drawing_state,
         &mut ctx.accounts.next_drawing_state_account,
         new_lp_value,
-        ini_drawing_time,
+        init_drawing_time,
     )?;
 
     Ok(())
@@ -101,25 +106,6 @@ pub struct Initialize<'info> {
         bump
     )]
     pub global_state_account: Account<'info, GlobalState>,
-
-    #[account(
-        init,
-        payer = signer,
-        space = 8 + DrawingState::INIT_SPACE,
-        seeds = [SEED_DRAWING_STATE, 0u64.to_le_bytes().as_ref()],
-        bump
-    )]
-    pub drawing_state_account : Account<'info, DrawingState>,
-
-    #[account(
-        init,
-        payer = signer,
-        space = 8 + DrawingState::INIT_SPACE,
-        seeds = [SEED_DRAWING_STATE, 1u64.to_le_bytes().as_ref()],
-        bump
-    )]
-    pub next_drawing_state_account : Account<'info, DrawingState>,
-
 
     #[account(
         init,
@@ -180,9 +166,9 @@ pub struct InitializeLordsPot<'info> {
         bump = per_epoch_state_account.bump,
         constraint = per_epoch_state_account.shares_percentage == PRECISE_UNIT @ LordspotError::LPDepositsNotInitialized
     )]
-    pub per_epoch_state_account : Account<'info, PerEpochState>,
+    pub per_epoch_state_account : Account<'info, PerEpochState>, // exists and used when current epoch > 0
 
-    pub prev_per_epoch_state_account: Option<Account<'info, PerEpochState>>,
+    pub prev_per_epoch_state_account: Option<Account<'info, PerEpochState>>, // exists and used when current epoch > 0
 
     #[account(
         seeds = [SEED_LP_DRAWING_STATE, 0u64.to_le_bytes().as_ref()],
@@ -201,14 +187,9 @@ pub struct InitializeLordsPot<'info> {
     pub next_drawing_id_to_lp_drawing_state : Account<'info, EpochIdToLPDrawingState>,
 
     #[account(
-        mut,
-        seeds = [SEED_DRAWING_STATE, 0u64.to_le_bytes().as_ref()],
-        bump
-    )]
-    pub drawing_state_account : Account<'info, DrawingState>,
-
-    #[account(
-        mut,
+        init,
+        payer = signer,
+        space = 8 + DrawingState::INIT_SPACE,
         seeds = [SEED_DRAWING_STATE, 1u64.to_le_bytes().as_ref()],
         bump
     )]

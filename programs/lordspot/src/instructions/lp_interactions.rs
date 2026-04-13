@@ -60,7 +60,7 @@ pub struct LpDeposit<'info> {
     #[account(
         seeds = [SEED_DRAWING_STATE, global_state_account.current_epoch_id.to_le_bytes().as_ref()],
         bump,
-        constraint = drawing_state_account.lordspot_lock == false @ LordspotError::LordspotLocked
+        constraint = global_state_account.current_epoch_id == 0 || drawing_state_account.lordspot_lock == false @ LordspotError::LordspotLocked
     )]
     pub drawing_state_account: Account<'info, DrawingState>,
 
