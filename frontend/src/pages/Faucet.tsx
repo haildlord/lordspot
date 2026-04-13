@@ -68,7 +68,7 @@ export const Faucet = () => {
                 })
                 .rpc({ skipPreflight: true });   // ←←← THIS IS THE IMPORTANT CHANGE
 
-            toast.success(`✅ ${requestedAmount} mUSDC Minted!`, { id: toastId });
+            toast.success(`✅ ${requestedAmount} lUSDC Minted!`, { id: toastId });
             setUserMinted(prev => prev + requestedAmount);
         } catch (err: any) {
             console.error("Full Mint Error:", err);
@@ -106,7 +106,7 @@ export const Faucet = () => {
                             <div>
                                 <p className="text-sm text-slate-400">REMAINING ALLOWANCE</p>
                                 <p className="text-6xl font-bold text-white">{remaining}</p>
-                                <p className="text-xs text-slate-500">of 30,000 mUSDC (Session)</p>
+                                <p className="text-xs text-slate-500">of 30,000 lUSDC (Session)</p>
                             </div>
                         </div>
 
@@ -133,7 +133,7 @@ export const Faucet = () => {
                             disabled={loading || remaining <= 0 || requestedAmount > remaining}
                             className="w-full py-7 text-2xl font-black bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 rounded-3xl hover:scale-105 transition-all disabled:opacity-50"
                         >
-                            {loading ? "MINTING ON SOLANA..." : `MINT ${requestedAmount} mUSDC`}
+                            {loading ? "MINTING ON SOLANA..." : `MINT ${requestedAmount} lUSDC`}
                         </button>
                     </>
                 )}
