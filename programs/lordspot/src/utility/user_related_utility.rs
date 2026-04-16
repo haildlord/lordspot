@@ -1,161 +1,98 @@
 use anchor_lang::prelude::*;
-use anchor_lang::Discriminator;
-use crate::constants::{SEED_TICKET, NORMAL_SELECTABLE_MARBLE_COUNT};
+use crate::constants::{NORMAL_SELECTABLE_MARBLE_COUNT};
 use crate::error::LordspotError;
-use crate::state::{DrawingState, GlobalState, TicketAccount};
+use crate::state::{DrawingState, GlobalState, TicketTracker, UserTickets};
 use crate::instructions::user_interactions_instructions::TicketInput;
 
-
-
 pub fn _validate_and_store_tickets<'info>(
-    // From ctx.accounts — passed individually to avoid lifetime conflicts
     global_state: &Account<'info, GlobalState>,
-    signer:          &Signer<'info>,
-    drawing:         &Account<'info, DrawingState>,
-    system_program:  &Program<'info, System>,
-    epoch_id:        u64,
-    starting_index:  u64,
-    tickets:         &[TicketInput],
-    remaining: &'info [AccountInfo<'info>],
-    program_id:      &Pubkey,
+    ticket_tracker: &mut Account<'info, TicketTracker>,
+    user_tickets: &mut Account<'info, UserTickets>,
+    drawing: &mut Account<'info, DrawingState>,   // mutable because we update prize_pool
+    tickets: &[TicketInput],
 ) -> Result<()> {
 
-    let epoch_bytes = epoch_id.to_le_bytes();
+    // edge -> $0.3
+    let edge = global_state.edge_per_ticket;
+    // net_per_ticket -> $0.7
+    let net_per_ticket = global_state.ticket_price
+        .checked_sub(edge)
+        .ok_or(LordspotError::AirthMaticUnderflow)?;
 
-    for (i, ticket_input) in tickets.iter().enumerate() {
+    let mut extra_to_prize = 0u64;
 
-        // --- Validate balls ---
+    for ticket_input in tickets {
+
         require!(
             ticket_input.normal_marbles.len() == NORMAL_SELECTABLE_MARBLE_COUNT as usize,
             LordspotError::InvalidNormalsCount
         );
 
+        // FIX: Safely accommodate any u8 value up to 255 to prevent panics
+        let mut seen = [false; 256];
+        for &ball in &ticket_input.normal_marbles {
+            if ball == 0 || ball > global_state.normal_marble_max || seen[ball as usize] {
+                return Err(LordspotError::DuplicateMarble.into());
+            }
+            seen[ball as usize] = true;
+        }
+
         require!(
-            ticket_input.special_marble >= 1
-            && ticket_input.special_marble <= drawing.special_marble_max,
+            ticket_input.special_marble >= 1 && ticket_input.special_marble <= drawing.special_marble_max,
             LordspotError::InvalidSpecialMarble
         );
 
-        // --- Compute bitvec on-chain ---
-        // Catches: ball out of range, duplicate balls in same ticket
-        let bitvec = compute_bitvec(
+        let packed = pack_ticket(
             &ticket_input.normal_marbles,
             ticket_input.special_marble,
             global_state.normal_marble_max,
-        )?;
-
-        // --- Unique global index for this ticket ---
-        // starting_index + i guarantees uniqueness:
-        //   same user, same combo, same tx  → i differs     → different PDA
-        //   same user, same combo, diff tx  → starting differs → different PDA
-        let ticket_index = starting_index
-            .checked_add(i as u64)
-            .ok_or(LordspotError::AirthMaticOverflow)?;
-
-        let ticket_index_bytes = ticket_index.to_le_bytes();
-
-        // --- Derive PDA and verify caller passed correct account ---
-        let (expected_pda, bump) = Pubkey::find_program_address(
-            &[
-                SEED_TICKET,
-                &epoch_bytes,
-                &ticket_index_bytes,
-            ],
-            program_id,
         );
 
-        let ticket_info = &remaining[i];
+        //  Check ONLY the global tracker to save Compute Units
+        let is_dup = ticket_tracker.packed_tickets.contains(&packed);
 
-        require!(
-            ticket_info.key() == expected_pda,
-            LordspotError::TicketAccountMismatch
-        );
+        // If it is a duplicate, add the net ticket value to our prize pool tracker
+        if is_dup {
+            extra_to_prize = extra_to_prize
+                .checked_add(net_per_ticket)
+                .ok_or(LordspotError::AirthMaticOverflow)?;
+        }
 
-        // --- Create the PDA account ---
-        let rent     = Rent::get()?;
-        let lamports = rent.minimum_balance(TicketAccount::LEN);
-
-        anchor_lang::system_program::create_account(
-            CpiContext::new_with_signer(
-                system_program.to_account_info(),
-                anchor_lang::system_program::CreateAccount {
-                    from: signer.to_account_info(),
-                    to:   ticket_info.clone(),
-                },
-                &[&[
-                    SEED_TICKET,
-                    &epoch_bytes,
-                    &ticket_index_bytes,
-                    &[bump],
-                ]],
-            ),
-            lamports,
-            TicketAccount::LEN as u64,
-            program_id,
-        )?;
-
-        // --- Write data into the new account ---
-        let ticket_data = TicketAccount {
-            owner:        signer.key(),
-            draw_id:      epoch_id,
-            bitvec,
-            ticket_index,
-            claimed:      false,
-            bump,
-        };
-
-        let mut data= ticket_info.try_borrow_mut_data()?;
-        let discriminator = TicketAccount::DISCRIMINATOR;
-
-        data[..8].copy_from_slice(&discriminator);
-
-        let encoded = ticket_data.try_to_vec()?;
-
-        data[8..8 + encoded.len()].copy_from_slice(&encoded);
+        // Push to both trackers unconditionally
+        ticket_tracker.packed_tickets.push(packed);
+        user_tickets.tickets.push(packed);
+        user_tickets.claimed.push(false);
     }
+
+    // Add all accumulated duplicate money to the prize_pool safely
+    drawing.prize_pool = drawing.prize_pool
+        .checked_add(extra_to_prize)
+        .ok_or(LordspotError::AirthMaticOverflow)?;
 
     Ok(())
 }
 
+// Packs a ticket (5 normal balls + 1 bonus ball) into a single u64
+// This is deterministic and unique for each combination (fits easily in 64 bits)
+// ! : soft cap limit of 65 vs `u64` bit flip, will it overflow -- this is a 100% bug
+pub fn pack_ticket(
+    normal_marbles: &[u8],   // exactly 5 numbers
+    special_marble: u8,
+    normal_max: u8,          // usually 30
+) -> u64 {
 
-fn compute_bitvec(
-    normal_marbles: &[u8],
-    special_marble:  u8,
-    marble_max:      u8,
-) -> Result<[u8; 32]> {
+    let mut packed: u64 = 0;
 
-    let mut bitvec = [0u8; 32];
-
+    // 1. Pack normal balls as bits (low 32 bits are enough for max=30)
     for &ball in normal_marbles {
-        // Ball must be in range 1..=marble_max
-        require!(
-            ball >= 1 && ball <= marble_max,
-            LordspotError::InvalidMarble
-        );
-
-        let byte_idx = ball as usize / 8;
-        let bit_idx  = ball as usize % 8;
-
-        // If bit already set — user passed duplicate ball
-        require!(
-            bitvec[byte_idx] & (1 << bit_idx) == 0,
-            LordspotError::DuplicateMarble
-        );
-
-        bitvec[byte_idx] |= 1 << bit_idx;
+        packed |= 1u64 << (ball as u64);
     }
 
-    // Special marble sits at bit position (marble_max + special_marble)
-    // Matches EVM encoding exactly
-    let special_pos = marble_max as usize + special_marble as usize;
+    // 2. Pack bonus ball in higher bits (after the normal balls)
+    // normal_max is usually 30, bonus up to 80 → total bits used ~ 30 + 7 = 37 bits
+    let bonus_pos = normal_max as u64 + special_marble as u64;
+    packed |= 1u64 << bonus_pos;
 
-    require!(
-        special_pos < 256,
-        LordspotError::InvalidSpecialMarble
-    );
-
-    bitvec[special_pos / 8] |= 1 << (special_pos % 8);
-
-    Ok(bitvec)
+    packed
 }
 

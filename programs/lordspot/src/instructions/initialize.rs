@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
-use crate::constants::{ADMIN_PUBKEY, SEED_PER_EPOCH, SEED_GLOBAL, PRECISE_UNIT, SEED_LP_DRAWING_STATE, SEED_PROTOCOL_USDC_ACCOUNT, MOCK_USDC_DEVNET_ADDRESS, SEED_DRAWING_STATE};
-use crate::state::{PerEpochState, GlobalState, EpochIdToLPDrawingState, DrawingState};
+use crate::constants::{ADMIN_PUBKEY, SEED_PER_EPOCH, SEED_GLOBAL, PRECISE_UNIT, SEED_LP_DRAWING_STATE, SEED_PROTOCOL_USDC_ACCOUNT, MOCK_USDC_DEVNET_ADDRESS, SEED_DRAWING_STATE, SEED_TICKET_TRACKER};
+use crate::state::{PerEpochState, GlobalState, EpochIdToLPDrawingState, DrawingState, TicketTracker};
 use crate::error::LordspotError;
 use crate::utility::main::*;
 use anchor_spl::associated_token::AssociatedToken;
@@ -86,6 +86,11 @@ pub fn init_lordspot_handler(ctx: Context<InitializeLordsPot>, init_drawing_time
         new_lp_value,
         init_drawing_time,
     )?;
+
+    // Initialize the TicketTracker
+    let tracker = &mut ctx.accounts.ticket_tracker;
+    tracker.drawing_id = 1;                    // first real epoch
+    tracker.bump = ctx.bumps.ticket_tracker;
 
     Ok(())
 }
@@ -194,6 +199,15 @@ pub struct InitializeLordsPot<'info> {
         bump
     )]
     pub next_drawing_state_account : Account<'info, DrawingState>,
+
+    #[account(
+        init,
+        payer = signer,
+        space = 8 + TicketTracker::INIT_SPACE,
+        seeds = [SEED_TICKET_TRACKER, 1u64.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub ticket_tracker: Account<'info, TicketTracker>,
 
     pub system_program : Program<'info, System>,
 }

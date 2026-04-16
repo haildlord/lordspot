@@ -26,6 +26,8 @@ pub const SEED_TRACKER_PER_EPOCH : &[u8] = b"epoch_to_tracker_account";
 pub const SEED_BUCKET : &[u8] = b"ticket_bucket";
 pub const SEED_TICKET : &[u8] = b"buyers_ticket";
 pub const SEED_TALLY: &[u8] = b"tally_state";
+pub const SEED_TICKET_TRACKER: &[u8] = b"ticket_tracker";
+pub const SEED_USER_TICKETS: &[u8] = b"user_tickets";
 pub const SEED_TREE_AUTHORITY: &[u8]  = b"tree_authority";
 pub const METADATA_BASE_URL:   &str   = "https://your-app.railway.app/ticket";
 
