@@ -29,6 +29,7 @@ pub const SEED_TALLY: &[u8] = b"tally_state";
 pub const SEED_TICKET_TRACKER: &[u8] = b"ticket_tracker";
 pub const SEED_USER_TICKETS: &[u8] = b"user_tickets";
 pub const SEED_TREE_AUTHORITY: &[u8]  = b"tree_authority";
+pub const SEED_TIER_PAYOUTS : &[u8] = b"tier_payouts_account";
 pub const METADATA_BASE_URL:   &str   = "https://your-app.railway.app/ticket";
 
 

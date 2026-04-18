@@ -48,6 +48,7 @@ pub fn initialize_global_config(
     protocol_fee_threshold: u64,
     global_bump: u8,
     protocol_usdc_vault_bump: u8,
+    drawing_duration: u64,
 ) -> Result<()> {
     // Bumps
     global.bump = global_bump;
@@ -74,6 +75,7 @@ pub fn initialize_global_config(
     // Protocol fee config
     global.protocol_fee = protocol_fee;
     global.protocol_fee_threshold = protocol_fee_threshold;
+    global.drawing_duration = drawing_duration;
 
     Ok(())
 }
@@ -107,15 +109,15 @@ pub fn set_lp_pool_cap(
 
     // Soft-cap safety (this was the missing piece)
     require!(
-        lp_soft_cap > next_drawing_lp_pool,
-        LordspotError::InvalidLPSoftCap
-    );
+lp_soft_cap > next_drawing_lp_pool,
+LordspotError::InvalidLPSoftCap
+);
 
     // Governance cap safety
     require!(
-        calc_lp_pool_cap >= next_drawing_lp_pool,
-        LordspotError::InvalidLPPoolCap
-    );
+calc_lp_pool_cap >= next_drawing_lp_pool,
+LordspotError::InvalidLPPoolCap
+);
 
     *state_lp_pool_cap = calc_lp_pool_cap;
 
@@ -290,4 +292,3 @@ pub fn _set_new_drawing_state( global_state_account : &mut Account<GlobalState>,
 
     Ok(())
 }
-

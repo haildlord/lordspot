@@ -1,60 +1,51 @@
 use anchor_lang::prelude::*;
-use anchor_spl::associated_token::spl_associated_token_account::solana_program;
 use crate::error::LordspotError;
 use crate::constants::{NORMAL_SELECTABLE_MARBLE_COUNT, PRECISE_UNIT, MIN_PAYOUT, PREMIUM_TIER_MIN_ALLOCATION, MIN_PAYOUT_TIERS, PREMIUM_TIER_WEIGHTS};
 use crate::utility::combinations::choose;
+// use solana_program::hash::hashv;
 
 
-
-pub fn fisher_yates_draw(
-    min:          u8,
-    max:          u8,
-    count:        u8,
-    seed:         [u8; 32],
-    nonce_offset: u64,
-) -> Result<Vec<u8>> {
-
-    let range_size = (max - min + 1) as usize;
-    require!(
-        count as usize <= range_size,
-        LordspotError::InvalidMarbleConfiguration
-    );
-
-    let mut pool: Vec<u8> = (min..=max).collect();
-    let mut nonce = nonce_offset;
-
-    for i in (1..range_size).rev() {
-
-        // Loop until rejection sampling finds a fair value
-        // Mirrors Solidity's while(true) exactly
-        let j: usize = loop {
-            let hash = solana_program::hash::hashv(&[
-                &seed,
-                &nonce.to_le_bytes(),
-            ]);
-            nonce += 1;
-
-            let rand_u64 = u64::from_le_bytes(
-                hash.to_bytes()[..8].try_into().unwrap()
-            );
-
-            // Largest multiple of (i+1) that fits in u64
-            // Any rand_u64 below this limit is unbiased
-            let limit = (u64::MAX / (i as u64 + 1)) * (i as u64 + 1);
-
-            if rand_u64 < limit {
-                break (rand_u64 % (i as u64 + 1)) as usize;
-            }
-            // else: biased value — loop again with new nonce
-            // identical to Solidity's while(true) { nonce++; } pattern
-        };
-
-        pool.swap(i, j);
-        // nonce already incremented inside loop
-    }
-
-    Ok(pool[..count as usize].to_vec())
-}
+// pub fn fisher_yates_draw(
+//     seed: [u8; 32],
+//     min_range: u8,
+//     max_range: u8,
+//     count: u8,
+// ) -> Result<Vec<u8>> {
+//     let range_size = (max_range - min_range + 1) as usize;
+//     let mut pool: Vec<u8> = (min_range..=max_range).collect();
+//     let mut nonce: u64 = 0;
+//
+//     for i in (1..range_size).rev() {
+//         let mut rand_idx: u64;
+//
+//         loop {
+//             // 🛡️ Standard SHA256 hashing (same as Keccak for our needs)
+//             let hash = hashv(&[
+//                 &seed,
+//                 &nonce.to_le_bytes(),
+//             ]);
+//
+//             let hash_bytes = hash.to_bytes();
+//
+//             let mut buf = [0u8; 8];
+//             buf.copy_from_slice(&hash_bytes[0..8]);
+//             let rand_val = u64::from_le_bytes(buf);
+//
+//             let limit = (u64::MAX / (i as u64 + 1)) * (i as u64 + 1);
+//
+//             if rand_val < limit {
+//                 rand_idx = rand_val % (i as u64 + 1);
+//                 break;
+//             }
+//             nonce += 1;
+//         }
+//
+//         pool.swap(i, rand_idx as usize);
+//         nonce += 1;
+//     }
+//
+//     Ok(pool[0..count as usize].to_vec())
+// }
 
 pub fn compute_winning_bitvec(
     normal_balls:     &[u8],
@@ -213,4 +204,14 @@ pub fn calculate_tier_winners_and_payouts(
     }
 
     (tier_winners, tier_payouts, use_minimum_payouts, min_payout_alloc, total_user_payout)
+}
+
+pub fn calculate_ticket_tier(
+    ticket: u64,
+    winning: u64,
+    normal_max: u8,
+) -> u8 {
+    let normal_matches = (ticket & winning).count_ones() as u8;
+    let bonus_match = (ticket & (1u64 << (normal_max as u64 + ((winning >> 32) as u64)))) != 0;
+    (normal_matches * 2) + if bonus_match { 1 } else { 0 }
 }

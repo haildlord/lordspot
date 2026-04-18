@@ -1,7 +1,6 @@
 use anchor_lang::prelude::*;
 use crate::constants::*;
 use crate::error::LordspotError;
-// ! at last Dont forget to rearrange the States usign chatgpt cuzz its makes storage and reading efficient
 
 #[account]
 #[derive(InitSpace)]
@@ -41,7 +40,7 @@ pub struct GlobalState {
     pub special_ball_hard_cap: u8,
 
     pub protocol_fee: u64,
-    pub protocol_fee_threshold: u64,
+    pub protocol_fee_threshold: u64, // ! what is the use of this in Megapot ?
 
     // ── Runtime State ──────────────────────────────────
     pub current_epoch_id: u64,

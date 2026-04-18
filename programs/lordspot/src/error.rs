@@ -141,4 +141,22 @@ pub enum LordspotError {
     #[msg("Invalid previous epoch ID")]
     InvalidPreviousEpochId,
 
+    #[msg("LordsPot is not Locket yet")]
+    LordspotNotLocked,
+
+    #[msg("LordsPot is already Locket")]
+    LordspotAlreadyLocked,
+
+    #[msg("Need to wait more, its not time yet to run LordsPot")]
+    CameTooEarlyToRunLordsPot,
+
+    #[msg("Parsing of Randomness Account failed.")]
+    RandomnessParseFailed,
+
+    #[msg("To many draws.")]
+    TooManyDraws,
+
+    #[msg("Internal Math Error")]
+    InternalMathError
+
 }
