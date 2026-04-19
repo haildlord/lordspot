@@ -2,50 +2,49 @@ use anchor_lang::prelude::*;
 use crate::error::LordspotError;
 use crate::constants::{NORMAL_SELECTABLE_MARBLE_COUNT, PRECISE_UNIT, MIN_PAYOUT, PREMIUM_TIER_MIN_ALLOCATION, MIN_PAYOUT_TIERS, PREMIUM_TIER_WEIGHTS};
 use crate::utility::combinations::choose;
-// use solana_program::hash::hashv;
+use solana_program::hash::hashv;
 
+pub fn fisher_yates_draw(
+    seed: [u8; 32],
+    min_range: u8,
+    max_range: u8,
+    count: u8,
+) -> Result<Vec<u8>> {
+    let range_size = (max_range - min_range + 1) as usize;
+    let mut pool: Vec<u8> = (min_range..=max_range).collect();
+    let mut nonce: u64 = 0;
 
-// pub fn fisher_yates_draw(
-//     seed: [u8; 32],
-//     min_range: u8,
-//     max_range: u8,
-//     count: u8,
-// ) -> Result<Vec<u8>> {
-//     let range_size = (max_range - min_range + 1) as usize;
-//     let mut pool: Vec<u8> = (min_range..=max_range).collect();
-//     let mut nonce: u64 = 0;
-//
-//     for i in (1..range_size).rev() {
-//         let mut rand_idx: u64;
-//
-//         loop {
-//             // 🛡️ Standard SHA256 hashing (same as Keccak for our needs)
-//             let hash = hashv(&[
-//                 &seed,
-//                 &nonce.to_le_bytes(),
-//             ]);
-//
-//             let hash_bytes = hash.to_bytes();
-//
-//             let mut buf = [0u8; 8];
-//             buf.copy_from_slice(&hash_bytes[0..8]);
-//             let rand_val = u64::from_le_bytes(buf);
-//
-//             let limit = (u64::MAX / (i as u64 + 1)) * (i as u64 + 1);
-//
-//             if rand_val < limit {
-//                 rand_idx = rand_val % (i as u64 + 1);
-//                 break;
-//             }
-//             nonce += 1;
-//         }
-//
-//         pool.swap(i, rand_idx as usize);
-//         nonce += 1;
-//     }
-//
-//     Ok(pool[0..count as usize].to_vec())
-// }
+    for i in (1..range_size).rev() {
+        let mut rand_idx: u64;
+
+        loop {
+            // 🛡️ Standard SHA256 hashing (same as Keccak for our needs)
+            let hash = hashv(&[
+                &seed,
+                &nonce.to_le_bytes(),
+            ]);
+
+            let hash_bytes = hash.to_bytes();
+
+            let mut buf = [0u8; 8];
+            buf.copy_from_slice(&hash_bytes[0..8]);
+            let rand_val = u64::from_le_bytes(buf);
+
+            let limit = (u64::MAX / (i as u64 + 1)) * (i as u64 + 1);
+
+            if rand_val < limit {
+                rand_idx = rand_val % (i as u64 + 1);
+                break;
+            }
+            nonce += 1;
+        }
+
+        pool.swap(i, rand_idx as usize);
+        nonce += 1;
+    }
+
+    Ok(pool[0..count as usize].to_vec())
+}
 
 pub fn compute_winning_bitvec(
     normal_balls:     &[u8],
@@ -114,16 +113,16 @@ pub fn calculate_special_marble_max(
 pub fn calculate_tier_total_winning_combos(
     matches: u64,
     normal_max: u8,
-    bonus_max: u8,
-    bonus_match: bool,
+    special_max: u8,
+    special_match: bool,
 ) -> u64 {
     let c1 = choose(NORMAL_SELECTABLE_MARBLE_COUNT as u64, matches).unwrap_or(0);
     let c2 = choose((normal_max as u64).saturating_sub(NORMAL_SELECTABLE_MARBLE_COUNT as u64), NORMAL_SELECTABLE_MARBLE_COUNT as u64 - matches).unwrap_or(0);
 
-    if bonus_match {
+    if special_match {
         c1 * c2
     } else {
-        c1 * c2 * ((bonus_max as u64).saturating_sub(1))
+        c1 * c2 * ((special_max as u64).saturating_sub(1))
     }
 }
 
@@ -131,8 +130,10 @@ pub fn calculate_tier_winners_and_payouts(
     prize_pool: u64,
     normal_max: u8,
     bonus_max: u8,
-    real_user_tickets_per_tier: &[u64; 12],
-) -> ([u64; 12], [u64; 12], bool, u64, u64) {
+    unique_per_tier: &[u64; 12], // Updated parameter
+    dup_per_tier: &[u64; 12],    // Updated parameter
+) -> ([u64; 12], u64) {
+
     let mut tier_winners = [0u64; 12];
     let mut min_payout_alloc = 0u64;
 
@@ -151,7 +152,7 @@ pub fn calculate_tier_winners_and_payouts(
             bonus_match,
         );
 
-        tier_winners[i] = combo_tickets + real_user_tickets_per_tier[i];
+        tier_winners[i] = combo_tickets + dup_per_tier[i];
 
         if MIN_PAYOUT_TIERS[i] {
             min_payout_alloc = min_payout_alloc
@@ -168,7 +169,6 @@ pub fn calculate_tier_winners_and_payouts(
 
     let use_minimum_payouts = premium_min_alloc + min_payout_alloc < prize_pool;
 
-    // Now compute per-ticket payouts
     let remaining = if use_minimum_payouts {
         prize_pool - min_payout_alloc
     } else {
@@ -198,12 +198,15 @@ pub fn calculate_tier_winners_and_payouts(
         };
 
         tier_payouts[i] = per_ticket;
+
+        let real_user_tickets = unique_per_tier[i] + dup_per_tier[i];
+
         total_user_payout = total_user_payout
-            .checked_add(per_ticket.checked_mul(real_user_tickets_per_tier[i]).unwrap_or(0))
+            .checked_add(per_ticket.checked_mul(real_user_tickets).unwrap_or(0))
             .unwrap_or(0);
     }
 
-    (tier_winners, tier_payouts, use_minimum_payouts, min_payout_alloc, total_user_payout)
+    (tier_payouts, total_user_payout)
 }
 
 pub fn calculate_ticket_tier(
@@ -211,7 +214,17 @@ pub fn calculate_ticket_tier(
     winning: u64,
     normal_max: u8,
 ) -> u8 {
-    let normal_matches = (ticket & winning).count_ones() as u8;
-    let bonus_match = (ticket & (1u64 << (normal_max as u64 + ((winning >> 32) as u64)))) != 0;
+    // 1. Create a mask for just the normal balls (bits 1 to 30)
+    // This creates a number with 1s in the first 31 positions
+    let normal_mask = (1u64 << (normal_max as u64 + 1)) - 1;
+
+    // 2. Count matches ONLY in the normal zone
+    let normal_matches = ((ticket & winning) & normal_mask).count_ones() as u8;
+
+    // 3. Check if they matched in the bonus zone (anything above bit 30)
+    // We don't need the ball value; we just check if any bit in the bonus zone overlaps
+    let bonus_match = ((ticket & winning) & !normal_mask) != 0;
+
+    // 4. Calculate the Tier Index (0-11)
     (normal_matches * 2) + if bonus_match { 1 } else { 0 }
 }

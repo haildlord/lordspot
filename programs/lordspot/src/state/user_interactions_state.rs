@@ -17,7 +17,9 @@ use anchor_lang::prelude::*;
 pub struct TicketTracker {
     pub drawing_id: u64,
     #[max_len(5000)]
-    pub packed_tickets: Vec<u64>,   // all tickets bought in this epoch
+    pub unique_tickets: Vec<u64>,
+    #[max_len(5000)]
+    pub duplicate_tickets: Vec<u64>, // all tickets bought in this epoch
     pub bump: u8,
 }
 

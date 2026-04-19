@@ -1,6 +1,4 @@
 use anchor_lang::prelude::*;
-use crate::constants::*;
-use crate::error::LordspotError;
 
 #[account]
 #[derive(InitSpace)]
@@ -45,7 +43,6 @@ pub struct GlobalState {
     // ── Runtime State ──────────────────────────────────
     pub current_epoch_id: u64,
     pub commit_slot: u64,
-    pub rand_value: Option<[u8; 32]>,
     pub lp_pool_cap: u64,
 
     // ── Governance Flags ───────────────────────────────

@@ -8,13 +8,10 @@ pub fn _validate_and_store_tickets<'info>(
     global_state: &Account<'info, GlobalState>,
     ticket_tracker: &mut Account<'info, TicketTracker>,
     user_tickets: &mut Account<'info, UserTickets>,
-    drawing: &mut Account<'info, DrawingState>,   // mutable because we update prize_pool
+    drawing: &mut Account<'info, DrawingState>,
     tickets: &[TicketInput],
 ) -> Result<()> {
-
-    // edge -> $0.3
     let edge = global_state.edge_per_ticket;
-    // net_per_ticket -> $0.7
     let net_per_ticket = global_state.ticket_price
         .checked_sub(edge)
         .ok_or(LordspotError::AirthMaticUnderflow)?;
@@ -22,13 +19,11 @@ pub fn _validate_and_store_tickets<'info>(
     let mut extra_to_prize = 0u64;
 
     for ticket_input in tickets {
-
         require!(
             ticket_input.normal_marbles.len() == NORMAL_SELECTABLE_MARBLE_COUNT as usize,
             LordspotError::InvalidNormalsCount
         );
 
-        // FIX: Safely accommodate any u8 value up to 255 to prevent panics
         let mut seen = [false; 256];
         for &ball in &ticket_input.normal_marbles {
             if ball == 0 || ball > global_state.normal_marble_max || seen[ball as usize] {
@@ -47,24 +42,26 @@ pub fn _validate_and_store_tickets<'info>(
             ticket_input.special_marble,
             global_state.normal_marble_max,
         );
+        
+        let is_dup = ticket_tracker.unique_tickets.contains(&packed);
 
-        //  Check ONLY the global tracker to save Compute Units
-        let is_dup = ticket_tracker.packed_tickets.contains(&packed);
-
-        // If it is a duplicate, add the net ticket value to our prize pool tracker
         if is_dup {
             extra_to_prize = extra_to_prize
                 .checked_add(net_per_ticket)
                 .ok_or(LordspotError::AirthMaticOverflow)?;
+
+            // Route to duplicate bucket
+            ticket_tracker.duplicate_tickets.push(packed);
+        } else {
+            // Route to unique bucket
+            ticket_tracker.unique_tickets.push(packed);
         }
 
-        // Push to both trackers unconditionally
-        ticket_tracker.packed_tickets.push(packed);
+        // Keep user tracking the same
         user_tickets.tickets.push(packed);
         user_tickets.claimed.push(false);
     }
 
-    // Add all accumulated duplicate money to the prize_pool safely
     drawing.prize_pool = drawing.prize_pool
         .checked_add(extra_to_prize)
         .ok_or(LordspotError::AirthMaticOverflow)?;
