@@ -290,7 +290,7 @@ pub struct RunJackpot<'info> {
         init,
         payer = signer,
         space = 8 + PerEpochState::INIT_SPACE,
-        seeds = [SEED_PER_EPOCH, (global_state_account.current_epoch_id).to_le_bytes().as_ref()],
+        seeds = [SEED_PER_EPOCH, global_state_account.current_epoch_id.to_le_bytes().as_ref()],
         bump,
     )]
     pub current_per_epoch_state: Account<'info, PerEpochState>,
