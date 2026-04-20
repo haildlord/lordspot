@@ -15,10 +15,9 @@ pub fn fisher_yates_draw(
     let mut nonce: u64 = 0;
 
     for i in (1..range_size).rev() {
-        let mut rand_idx: u64;
+        let rand_idx: u64;
 
         loop {
-            // 🛡️ Standard SHA256 hashing (same as Keccak for our needs)
             let hash = hashv(&[
                 &seed,
                 &nonce.to_le_bytes(),

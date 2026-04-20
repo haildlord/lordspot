@@ -189,6 +189,7 @@ pub struct CommitToRandomNum<'info>{
     pub drawing_state: Account<'info, DrawingState>,
 }
 
+// ! bumps not stored
 #[derive(Accounts)]
 pub struct SaveRandomNum<'info>{
 

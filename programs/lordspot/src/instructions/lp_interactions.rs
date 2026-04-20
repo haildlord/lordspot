@@ -9,8 +9,7 @@ use crate::utility::lp_related_utility::process_deposit;
 
 pub fn lp_deposit(
     ctx: Context<LpDeposit>,
-    amount: u64,
-    prev_epoch_id: u64,
+    amount: u64
 ) -> Result<()> {
 
     require!(amount > 0, LordspotError::AmountCannotBeZero);
@@ -46,7 +45,6 @@ pub fn lp_deposit(
 
 
 #[derive(Accounts)]
-#[instruction(prev_epoch_id: u64)]
 pub struct LpDeposit<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
@@ -112,12 +110,18 @@ pub struct LpDeposit<'info> {
     pub deposit_epoch_state: Account<'info, PerEpochState>,
 
     // Previous epoch state (for pending withdrawals calculation)
+    // #[account(
+    //     seeds = [SEED_PER_EPOCH, prev_epoch_id.to_le_bytes().as_ref()],
+    //     bump,
+    //     constraint = global_state_account.current_epoch_id == 0
+    //         || prev_epoch_id == global_state_account.current_epoch_id - 1
+    //         @ LordspotError::InvalidPreviousEpochId
+    // )]
+    // pub prev_per_epoch_state: Option<Account<'info, PerEpochState>>,
+
     #[account(
-        seeds = [SEED_PER_EPOCH, prev_epoch_id.to_le_bytes().as_ref()],
-        bump,
-        constraint = global_state_account.current_epoch_id == 0
-            || prev_epoch_id == global_state_account.current_epoch_id - 1
-            @ LordspotError::InvalidPreviousEpochId
+        seeds = [SEED_PER_EPOCH, global_state_account.current_epoch_id.saturating_sub(1).to_le_bytes().as_ref()],
+        bump
     )]
     pub prev_per_epoch_state: Option<Account<'info, PerEpochState>>,
 
