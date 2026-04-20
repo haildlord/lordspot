@@ -190,7 +190,7 @@ pub fn process_drawing_settlement(
     global_state_account: &Account<GlobalState>,
     current_lp_state: &Account<EpochIdToLPDrawingState>,
     lp_earnings: u64,                                      // read only, and is 0 when global_state.current_epoch_id == 0
-    next_per_epoch_state: &mut Account<PerEpochState>,     // exists and used when current epoch > 0
+    current_per_epoch_state: &mut Account<PerEpochState>,     // exists and used when current epoch > 0
     prev_per_epoch_state: &Option<Account<PerEpochState>>, // exists and used when current epoch > 0
     user_winnings: u64,
     protocol_fee_amount: u64,
@@ -218,7 +218,7 @@ pub fn process_drawing_settlement(
                 .ok_or(LordspotError::AirthMaticUnderflow)? as u64
         };
 
-        next_per_epoch_state.shares_percentage = new_accumulator;
+        current_per_epoch_state.shares_percentage = new_accumulator;
     }
 
     // withdrawals_in_usdc uses new_accumulator (0 during init)

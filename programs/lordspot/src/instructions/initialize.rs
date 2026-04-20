@@ -101,50 +101,50 @@ pub fn init_lordspot_handler(ctx: Context<InitializeLordsPot>, init_drawing_time
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(
-mut,
-address = ADMIN_PUBKEY @ LordspotError::InvalidOwner
+        mut,
+        address = ADMIN_PUBKEY @ LordspotError::InvalidOwner
     )]
     pub signer : Signer<'info>,
 
     #[account(
-init,
-payer = signer,
-space = 8 + GlobalState::INIT_SPACE,
-seeds = [SEED_GLOBAL],
-bump
+        init,
+        payer = signer,
+        space = 8 + GlobalState::INIT_SPACE,
+        seeds = [SEED_GLOBAL],
+        bump
     )]
     pub global_state_account: Account<'info, GlobalState>,
 
     #[account(
-init,
-payer = signer,
-space = 8 + PerEpochState::INIT_SPACE,
-seeds = [SEED_PER_EPOCH, 0u64.to_le_bytes().as_ref()],
-bump
+        init,
+        payer = signer,
+        space = 8 + PerEpochState::INIT_SPACE,
+        seeds = [SEED_PER_EPOCH, 0u64.to_le_bytes().as_ref()],
+        bump
     )]
     pub per_epoch_state_account : Account<'info, PerEpochState>,
 
     #[account(
-init,
-payer = signer,
-space = 8 + EpochIdToLPDrawingState::INIT_SPACE,
-seeds = [SEED_LP_DRAWING_STATE, 0u64.to_le_bytes().as_ref()],
-bump
+        init,
+        payer = signer,
+        space = 8 + EpochIdToLPDrawingState::INIT_SPACE,
+        seeds = [SEED_LP_DRAWING_STATE, 0u64.to_le_bytes().as_ref()],
+        bump
     )]
     pub drawing_id_to_lp_drawing_state : Account<'info, EpochIdToLPDrawingState>,
 
     #[account(
-address = MOCK_USDC_DEVNET_ADDRESS @ LordspotError::InvalidMintAddress
+        address = MOCK_USDC_DEVNET_ADDRESS @ LordspotError::InvalidMintAddress
     )]
     pub usdc_mint: InterfaceAccount<'info, Mint>,
 
     #[account(
-init,
-payer = signer,
-token::mint = usdc_mint,
-token::authority = global_state_account,
-seeds=[SEED_PROTOCOL_USDC_ACCOUNT],
-bump
+        init,
+        payer = signer,
+        token::mint = usdc_mint,
+        token::authority = global_state_account,
+        seeds=[SEED_PROTOCOL_USDC_ACCOUNT],
+        bump
     )]
     pub protocol_usdc_vault : InterfaceAccount<'info, TokenAccount>,
 
@@ -157,58 +157,58 @@ bump
 pub struct InitializeLordsPot<'info> {
 
     #[account(
-mut,
-address = ADMIN_PUBKEY @ LordspotError::InvalidOwner
+        mut,
+        address = ADMIN_PUBKEY @ LordspotError::InvalidOwner
     )]
     pub signer : Signer<'info>,
 
     #[account(
-seeds = [SEED_GLOBAL],
-bump = global_state_account.bump,
-constraint = global_state_account.current_epoch_id == 0 @ LordspotError::LordspotAlreadyInitialized
+        seeds = [SEED_GLOBAL],
+        bump = global_state_account.bump,
+        constraint = global_state_account.current_epoch_id == 0 @ LordspotError::LordspotAlreadyInitialized
     )]
     pub global_state_account: Account<'info, GlobalState>,
 
     #[account(
-seeds = [SEED_PER_EPOCH, 0u64.to_le_bytes().as_ref()],
-bump = per_epoch_state_account.bump,
-constraint = per_epoch_state_account.shares_percentage == PRECISE_UNIT @ LordspotError::LPDepositsNotInitialized
+        seeds = [SEED_PER_EPOCH, 0u64.to_le_bytes().as_ref()],
+        bump = per_epoch_state_account.bump,
+        constraint = per_epoch_state_account.shares_percentage == PRECISE_UNIT @ LordspotError::LPDepositsNotInitialized
     )]
     pub per_epoch_state_account : Account<'info, PerEpochState>, // exists and used when current epoch > 0
 
     pub prev_per_epoch_state_account: Option<Account<'info, PerEpochState>>, // exists and used when current epoch > 0
 
     #[account(
-seeds = [SEED_LP_DRAWING_STATE, 0u64.to_le_bytes().as_ref()],
-bump = drawing_id_to_lp_drawing_state.bump,
-constraint = drawing_id_to_lp_drawing_state.pending_deposits != 0 @ LordspotError::NoLPDeposits
+        seeds = [SEED_LP_DRAWING_STATE, 0u64.to_le_bytes().as_ref()],
+        bump = drawing_id_to_lp_drawing_state.bump,
+        constraint = drawing_id_to_lp_drawing_state.pending_deposits != 0 @ LordspotError::NoLPDeposits
     )]
     pub drawing_id_to_lp_drawing_state : Account<'info, EpochIdToLPDrawingState>,
 
     #[account(
-init,
-payer = signer,
-space = 8 + EpochIdToLPDrawingState::INIT_SPACE,
-seeds = [SEED_LP_DRAWING_STATE, 1u64.to_le_bytes().as_ref()],
-bump
+        init,
+        payer = signer,
+        space = 8 + EpochIdToLPDrawingState::INIT_SPACE,
+        seeds = [SEED_LP_DRAWING_STATE, 1u64.to_le_bytes().as_ref()],
+        bump
     )]
     pub next_drawing_id_to_lp_drawing_state : Account<'info, EpochIdToLPDrawingState>,
 
     #[account(
-init,
-payer = signer,
-space = 8 + DrawingState::INIT_SPACE,
-seeds = [SEED_DRAWING_STATE, 1u64.to_le_bytes().as_ref()],
-bump
+        init,
+        payer = signer,
+        space = 8 + DrawingState::INIT_SPACE,
+        seeds = [SEED_DRAWING_STATE, 1u64.to_le_bytes().as_ref()],
+        bump
     )]
     pub next_drawing_state_account : Account<'info, DrawingState>,
 
     #[account(
-init,
-payer = signer,
-space = 8 + TicketTracker::INIT_SPACE,
-seeds = [SEED_TICKET_TRACKER, 1u64.to_le_bytes().as_ref()],
-bump
+        init,
+        payer = signer,
+        space = 8 + TicketTracker::INIT_SPACE,
+        seeds = [SEED_TICKET_TRACKER, 1u64.to_le_bytes().as_ref()],
+        bump
     )]
     pub ticket_tracker: Account<'info, TicketTracker>,
 

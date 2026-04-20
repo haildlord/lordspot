@@ -1,16 +1,5 @@
 use anchor_lang::prelude::*;
 
-// #[account]
-// #[derive(InitSpace)]
-// pub struct TicketAccount {
-//     pub owner:        Pubkey,   // 32 — stored for claim verification
-//     pub draw_id:      u64,      //  8 — which epoch this ticket belongs to
-//     pub bitvec:       [u8; 32], // 32 — the full encoded ticket
-//     pub ticket_index: u64,      //  8 — position in draw (= PDA seed)
-//     pub claimed:      bool,     //  1 — has prize been claimed
-//     pub bump:         u8,       //  1
-// }
-
 // Global tracker - one per epoch
 #[account]
 #[derive(InitSpace)]

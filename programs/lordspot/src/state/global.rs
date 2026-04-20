@@ -38,7 +38,7 @@ pub struct GlobalState {
     pub special_ball_hard_cap: u8,
 
     pub protocol_fee: u64,
-    pub protocol_fee_threshold: u64, // ! what is the use of this in Megapot ?
+    pub protocol_fee_threshold: u64,
 
     // ── Runtime State ──────────────────────────────────
     pub current_epoch_id: u64,

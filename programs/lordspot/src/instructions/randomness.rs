@@ -4,7 +4,7 @@ use crate::constants::{ADMIN_PUBKEY, SEED_GLOBAL, SEED_DRAWING_STATE, SEED_LP_DR
 use switchboard_on_demand::accounts::RandomnessAccountData;
 use crate::error::LordspotError;
 use crate::state::{DrawingState, GlobalState, TierPayouts, TicketTracker, EpochIdToLPDrawingState, PerEpochState};
-use crate::utility::{fisher_yates_draw, calculate_tier_winners_and_payouts, pack_ticket, calculate_ticket_tier, calculate_tier_total_winning_combos, process_drawing_settlement, _set_new_drawing_state};
+use crate::utility::{fisher_yates_draw, calculate_tier_winners_and_payouts, pack_ticket, calculate_ticket_tier, process_drawing_settlement, _set_new_drawing_state};
 
 
 pub fn commit_to_random_num_handler(ctx : Context<CommitToRandomNum>) -> Result<()> {
@@ -132,16 +132,18 @@ pub fn run_jackpot_handler(ctx: Context<RunJackpot>) -> Result<()> {
         );
 
     ctx.accounts.tier_payouts_account.tier_payouts = tier_payouts_array;
-    ctx.accounts.tier_payouts_account.drawing_id = global.current_epoch_id;
+    ctx.accounts.tier_payouts_account.epoch_id = global.current_epoch_id;
+
+
 
     let (new_lp_value, _) = process_drawing_settlement(
         global,
         &ctx.accounts.lp_drawing_state,
         drawing.lp_earnings,
-        &mut ctx.accounts.next_per_epoch_state,
+        &mut ctx.accounts.current_per_epoch_state,
         &ctx.accounts.prev_per_epoch_state,
         total_user_payout,
-        0,
+        0, // ! protocl fee amount not implimented -- will do it later
     )?;
 
     _set_new_drawing_state(
@@ -210,6 +212,26 @@ pub struct SaveRandomNum<'info>{
         constraint = drawing_state.lordspot_lock == true @ LordspotError::LordspotNotLocked,
     )]
     pub drawing_state: Account<'info, DrawingState>,
+
+    #[account(
+        init,
+        payer = signer,
+        space = 8 + DrawingState::INIT_SPACE,
+        seeds = [SEED_DRAWING_STATE, (global_state_account.current_epoch_id + 1).to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub drawing_state_account: Account<'info, DrawingState>,
+
+    #[account(
+        init,
+        payer = signer,
+        space = 8 + TicketTracker::INIT_SPACE,
+        seeds = [SEED_TICKET_TRACKER, (global_state_account.current_epoch_id + 1).to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub ticket_tracker: Account<'info, TicketTracker>,
+
+    pub system_program: Program<'info, System>,
 }
 
 
@@ -255,23 +277,27 @@ pub struct RunJackpot<'info> {
 
     // Next epoch LP state (will be created / updated)
     #[account(
-        mut,
+        init,
+        payer = signer,
+        space = 8 + EpochIdToLPDrawingState::INIT_SPACE,
         seeds = [SEED_LP_DRAWING_STATE, (global_state_account.current_epoch_id + 1).to_le_bytes().as_ref()],
-        bump = next_lp_drawing_state.bump,
+        bump
     )]
     pub next_lp_drawing_state: Account<'info, EpochIdToLPDrawingState>,
 
     // Next epoch PerEpochState (used by process_drawing_settlement)
     #[account(
-        mut,
-        seeds = [SEED_PER_EPOCH, (global_state_account.current_epoch_id + 1).to_le_bytes().as_ref()],
-        bump = next_per_epoch_state.bump,
+        init,
+        payer = signer,
+        space = 8 + PerEpochState::INIT_SPACE,
+        seeds = [SEED_PER_EPOCH, (global_state_account.current_epoch_id).to_le_bytes().as_ref()],
+        bump,
     )]
-    pub next_per_epoch_state: Account<'info, PerEpochState>,
+    pub current_per_epoch_state: Account<'info, PerEpochState>,
 
     // Previous epoch PerEpochState (Option, used by process_drawing_settlement)
     #[account(
-        seeds = [SEED_PER_EPOCH, global_state_account.current_epoch_id.to_le_bytes().as_ref()],
+        seeds = [SEED_PER_EPOCH, (global_state_account.current_epoch_id - 1).to_le_bytes().as_ref()],
         bump,
     )]
     pub prev_per_epoch_state: Option<Account<'info, PerEpochState>>,

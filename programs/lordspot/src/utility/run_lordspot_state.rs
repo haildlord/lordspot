@@ -130,8 +130,8 @@ pub fn calculate_tier_winners_and_payouts(
     prize_pool: u64,
     normal_max: u8,
     bonus_max: u8,
-    unique_per_tier: &[u64; 12], // Updated parameter
-    dup_per_tier: &[u64; 12],    // Updated parameter
+    unique_per_tier: &[u64; 12],
+    dup_per_tier: &[u64; 12],
 ) -> ([u64; 12], u64) {
 
     let mut tier_winners = [0u64; 12];
@@ -145,6 +145,7 @@ pub fn calculate_tier_winners_and_payouts(
             continue;
         }
 
+        // all unique tickets (LP's + real Users)
         let combo_tickets = calculate_tier_total_winning_combos(
             matches as u64,
             normal_max,
@@ -152,6 +153,7 @@ pub fn calculate_tier_winners_and_payouts(
             bonus_match,
         );
 
+        // total tickets (unique + duplicates)
         tier_winners[i] = combo_tickets + dup_per_tier[i];
 
         if MIN_PAYOUT_TIERS[i] {
@@ -169,6 +171,8 @@ pub fn calculate_tier_winners_and_payouts(
 
     let use_minimum_payouts = premium_min_alloc + min_payout_alloc < prize_pool;
 
+    let active_min_payout = if use_minimum_payouts { MIN_PAYOUT } else { 0 };
+
     let remaining = if use_minimum_payouts {
         prize_pool - min_payout_alloc
     } else {
@@ -179,6 +183,7 @@ pub fn calculate_tier_winners_and_payouts(
     let mut total_user_payout = 0u64;
 
     for i in 0..12usize {
+
         if tier_winners[i] == 0 {
             continue;
         }
@@ -192,7 +197,7 @@ pub fn calculate_tier_winners_and_payouts(
             .unwrap_or(0);
 
         let per_ticket = if MIN_PAYOUT_TIERS[i] {
-            MIN_PAYOUT + premium_amount
+            active_min_payout + premium_amount
         } else {
             premium_amount
         };
