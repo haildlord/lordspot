@@ -7,7 +7,7 @@ use crate::state::{DrawingState, EpochIdToLPDrawingState, GlobalState, PerEpochS
 use crate::state::lp_related_state::LPInfo;
 use crate::utility::lp_related_utility::process_deposit;
 
-pub fn lp_deposit(
+pub fn lp_deposit_handler(
     ctx: Context<LpDeposit>,
     amount: u64
 ) -> Result<()> {

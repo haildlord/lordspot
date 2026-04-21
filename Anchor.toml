@@ -12,8 +12,9 @@ lordspot = "7eBJpDhqrtdEyBnrHwNb6QEbJ4YQxz9k2KacKH6oe9W6"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "devnet"
+cluster = "http://localhost:8899"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 \"tests/**/*.ts\""
+initialize = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/initialize.ts"

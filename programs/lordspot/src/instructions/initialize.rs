@@ -7,7 +7,7 @@ use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 // ! in this page we have used ADMIN_PUBKEY when deploying use : DEVNET_ADMIN_PUBKEY
 
-pub fn handler_init(
+pub fn init_handler(
     ctx: Context<Initialize>,
     rngkp: Pubkey,
     normal_marble_max: u8,
