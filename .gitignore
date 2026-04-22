@@ -27,4 +27,4 @@ Thumbs.db
 # Deployment Signers / Sensitive TX data
 runbooks/deployment/signers.*.tx
 
-.my_notes.md
+my_notes.md
