@@ -5,9 +5,9 @@ use anchor_lang::prelude::*;
 #[derive(InitSpace)]
 pub struct TicketTracker {
     pub drawing_id: u64,
-    #[max_len(5000)]
+    #[max_len(500)]
     pub unique_tickets: Vec<u64>,
-    #[max_len(5000)]
+    #[max_len(500)]
     pub duplicate_tickets: Vec<u64>, // all tickets bought in this epoch
     pub bump: u8,
 }

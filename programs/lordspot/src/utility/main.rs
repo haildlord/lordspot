@@ -47,12 +47,10 @@ pub fn initialize_global_config(
     protocol_fee: u64,
     protocol_fee_threshold: u64,
     global_bump: u8,
-    protocol_usdc_vault_bump: u8,
     drawing_duration: u64,
 ) -> Result<()> {
     // Bumps
     global.bump = global_bump;
-    global.protocol_usdc_vault_bump = protocol_usdc_vault_bump;
 
     // Switchboard
     global.switchboard_random_account = rngkp;
@@ -109,15 +107,15 @@ pub fn set_lp_pool_cap(
 
     // Soft-cap safety (this was the missing piece)
     require!(
-lp_soft_cap > next_drawing_lp_pool,
-LordspotError::InvalidLPSoftCap
-);
+        lp_soft_cap > next_drawing_lp_pool,
+        LordspotError::InvalidLPSoftCap
+    );
 
     // Governance cap safety
     require!(
-calc_lp_pool_cap >= next_drawing_lp_pool,
-LordspotError::InvalidLPPoolCap
-);
+        calc_lp_pool_cap >= next_drawing_lp_pool,
+        LordspotError::InvalidLPPoolCap
+    );
 
     *state_lp_pool_cap = calc_lp_pool_cap;
 
@@ -140,13 +138,13 @@ pub fn calculate_lp_pool_soft_cap(
         .checked_mul(bonusball_soft_cap as u64)
         .ok_or(LordspotError::AirthMaticOverflow)?;
 
-    let max_prize = max_tickets
-        .checked_mul(ticket_price)
+    let max_prize = (max_tickets as u128)
+        .checked_mul(ticket_price as u128)
         .ok_or(LordspotError::AirthMaticOverflow)?
-        .checked_mul(PRECISE_UNIT - lp_target_percent)
+        .checked_mul((PRECISE_UNIT - lp_target_percent) as u128)
         .ok_or(LordspotError::AirthMaticOverflow)?
-        .checked_div(PRECISE_UNIT)
-        .ok_or(LordspotError::AirthMaticUnderflow)?;
+        .checked_div(PRECISE_UNIT as u128)
+        .ok_or(LordspotError::AirthMaticUnderflow)? as u64;
 
     Ok(max_prize)
 }
@@ -205,6 +203,7 @@ pub fn process_drawing_settlement(
     let mut new_accumulator: u64 = 0;
 
     if global_state_account.current_epoch_id > 0 {
+
         new_accumulator = if current_lp_state.lp_pool_total == 0 {
             PRECISE_UNIT
         } else {
@@ -219,6 +218,7 @@ pub fn process_drawing_settlement(
         };
 
         current_per_epoch_state.shares_percentage = new_accumulator;
+
     }
 
     // withdrawals_in_usdc uses new_accumulator (0 during init)

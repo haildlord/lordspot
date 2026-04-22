@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface, TransferChecked, transfer_checked};
 use crate::state::{GlobalState, DrawingState, TicketTracker, UserTickets};
-use crate::constants::{ SEED_GLOBAL, SEED_DRAWING_STATE, MOCK_USDC_DEVNET_ADDRESS, SEED_PROTOCOL_USDC_ACCOUNT, SEED_USER_TICKETS, SEED_TICKET_TRACKER};
+use crate::constants::{ SEED_GLOBAL, SEED_DRAWING_STATE, MOCK_USDC_DEVNET_ADDRESS, SEED_USER_TICKETS, SEED_TICKET_TRACKER};
 use crate::error::LordspotError;
 use crate::utility::user_related_utility::*;
 
@@ -78,37 +78,37 @@ pub struct BuyTicket<'info> {
     pub signer: Signer<'info>,
 
     #[account(
-seeds = [SEED_GLOBAL],
-bump = global_state_account.bump,
-constraint = global_state_account.allow_ticket_purchase == true
-@ LordspotError::TicketPurchaseNotAllowed,
+        seeds = [SEED_GLOBAL],
+        bump = global_state_account.bump,
+        constraint = global_state_account.allow_ticket_purchase == true
+        @ LordspotError::TicketPurchaseNotAllowed,
     )]
     pub global_state_account: Account<'info, GlobalState>,
 
     #[account(
-mut,
-seeds = [SEED_DRAWING_STATE, global_state_account.current_epoch_id.to_le_bytes().as_ref()],
-bump = drawing_state_account.bump,
-constraint = drawing_state_account.lordspot_lock == false @ LordspotError::LordspotIsLocked,
-constraint = drawing_state_account.prize_pool != 0 @ LordspotError::NotEnoughLiquidity,
+        mut,
+        seeds = [SEED_DRAWING_STATE, global_state_account.current_epoch_id.to_le_bytes().as_ref()],
+        bump = drawing_state_account.bump,
+        constraint = drawing_state_account.lordspot_lock == false @ LordspotError::LordspotIsLocked,
+        constraint = drawing_state_account.prize_pool != 0 @ LordspotError::NotEnoughLiquidity,
     )]
     pub drawing_state_account: Account<'info, DrawingState>,
 
     // Global tracker for isDup detection
     #[account(
-mut,
-seeds = [SEED_TICKET_TRACKER, global_state_account.current_epoch_id.to_le_bytes().as_ref()],
-bump = ticket_tracker.bump,
+        mut,
+        seeds = [SEED_TICKET_TRACKER, global_state_account.current_epoch_id.to_le_bytes().as_ref()],
+        bump = ticket_tracker.bump,
     )]
     pub ticket_tracker: Account<'info, TicketTracker>,
 
     // User's tickets in this epoch (only 1 PDA per user per epoch)
     #[account(
-init_if_needed,
-payer = signer,
-space = 8 + UserTickets::INIT_SPACE,
-seeds = [SEED_USER_TICKETS, signer.key().as_ref(), global_state_account.current_epoch_id.to_le_bytes().as_ref()],
-bump,
+        init_if_needed,
+        payer = signer,
+        space = 8 + UserTickets::INIT_SPACE,
+        seeds = [SEED_USER_TICKETS, signer.key().as_ref(), global_state_account.current_epoch_id.to_le_bytes().as_ref()],
+        bump,
     )]
     pub user_tickets: Account<'info, UserTickets>,
 
@@ -116,18 +116,16 @@ bump,
     pub usdc_mint: InterfaceAccount<'info, Mint>,
 
     #[account(
-mut,
-token::authority = signer,
-token::mint = usdc_mint,
+        mut,
+        token::authority = signer,
+        token::mint = usdc_mint,
     )]
     pub buyers_usdc_account: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
-mut,
-seeds = [SEED_PROTOCOL_USDC_ACCOUNT],
-bump = global_state_account.protocol_usdc_vault_bump,
-token::mint = usdc_mint,
-token::authority = global_state_account
+        mut,
+        token::mint = usdc_mint,
+        token::authority = global_state_account
     )]
     pub protocol_usdc_vault: InterfaceAccount<'info, TokenAccount>,
 

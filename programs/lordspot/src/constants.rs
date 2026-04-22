@@ -19,7 +19,6 @@ pub const BPS_UNIT : u64 = 10_000;
 pub const SEED_PER_EPOCH: &[u8] = b"per_epoch_state_account";
 pub const SEED_GLOBAL: &[u8] = b"global_state_account";
 pub const SEED_LP_DRAWING_STATE : &[u8] = b"drawing_id_to_lp_drawing_state";
-pub const SEED_PROTOCOL_USDC_ACCOUNT : &[u8] = b"protocol_usdc_mint_account";
 pub const SEED_LP_INFO : &[u8] = b"lp_info_account";
 pub const SEED_DRAWING_STATE : &[u8] = b"drawing_state_account";
 pub const SEED_TRACKER_PER_EPOCH : &[u8] = b"epoch_to_tracker_account";

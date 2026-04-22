@@ -1,45 +1,52 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Keypair, PublicKey } from "@solana/web3.js";
 import * as sb from "@switchboard-xyz/on-demand";
-import { Wallet } from "@coral-xyz/anchor";
+import { LordsPot } from "../target/types/lords_pot";
+import {loadOrCreateKeypair} from "../tests/utils/utils";
+import {
+  protocolUsdcVaultAta,
+  perEpochState0Pda,
+} from "../tests/utils/seeds_and_ata";
 
+// ============================================================================
+// MAIN DEPLOYMENT SCRIPT
+// ============================================================================
 module.exports = async function (provider: anchor.AnchorProvider) {
+
   anchor.setProvider(provider);
+  const wallet = provider.wallet as anchor.Wallet;
 
-  const wallet = provider.wallet; // H8Q7CUvPigtSxfd13TKRuFrwdJtc6pJu9BMNhbXF9yAY
+  console.log("Deploying to Surfnet (persistent):", provider.connection.rpcEndpoint);
+  console.log("Default Deployer Wallet:", wallet.publicKey.toBase58());
 
-  const lordsPotProgramId = anchor.workspace.LordsPot.programId; // 7eBJpDhqrtdEyBnrHwNb6QEbJ4YQxz9k2KacKH6oe9W6
+  const lordsPotProgram = anchor.workspace.LordsPot as anchor.Program<LordsPot>;
+  const rngKp = loadOrCreateKeypair("rng.json");
+  const rngAuthorityKp = loadOrCreateKeypair("rng_authority.json");
 
-  // 5CQmLHNx2PkeeRKCj1qDGJhhFnTxXAcCrhXmdRnq9fiY
-  const [randomnessAccountPDA] = PublicKey.findProgramAddressSync(
-    [Buffer.from("global_state_account")],
-    lordsPotProgramId
-  );
+  console.log("RNG Account Pubkey:", rngKp.publicKey.toBase58());
+  console.log("RNG Authority Pubkey (Keep Private Key safe!):", rngAuthorityKp.publicKey.toBase58());
 
-  let rngKp: Keypair = Keypair.generate(); // 4oZnGEevR1M7En4RRJMYTNcogwZ4pH7eGVjEvYqJmasA
-
-  const queue = await sb.getDefaultQueue(provider.connection.rpcEndpoint); // EYiAmGSdsQTuCw413V5BzaruWuCCSDgTPtBGvLkXHbe7
-
-  const sbProgramId = await sb.getProgramId(provider.connection); // Aio4gaXjXzJNVLtzwtNVmSqGKpANtXhybbkhtAC94ji2
-
+  const queue = await sb.getDefaultQueue(provider.connection.rpcEndpoint);
+  const sbProgramId = await sb.getProgramId(provider.connection);
   const sbProgram = await anchor.Program.at(sbProgramId, provider);
 
+  // ============================================================================
+  // STEP 1: CREATE SWITCHBOARD RANDOMNESS ACCOUNT
+  // ============================================================================
+  console.log("\n--- STEP 1: Setting up Switchboard Randomness ---");
+
   try {
-
-    console.log("Sending TX 1: Creating 1st tx to Switchboard...");
-
     const [randomness, ix] = await sb.Randomness.create(
-      sbProgram as any,
-      rngKp,
-      queue.pubkey
+        sbProgram as any,
+        rngKp,
+        queue.pubkey,
+        rngAuthorityKp.publicKey
     );
-
 
     const createRandomnessTx = await sb.asV0Tx({
       connection: provider.connection,
       ixs: [ix],
       payer: wallet.publicKey,
-      signers: [wallet.payer, rngKp], // fixed this line too
+      signers: [wallet.payer, rngKp, rngAuthorityKp],
       computeUnitPrice: 75_000,
       computeUnitLimitMultiple: 1.3,
     });
@@ -47,79 +54,72 @@ module.exports = async function (provider: anchor.AnchorProvider) {
     const sig1 = await provider.connection.sendTransaction(createRandomnessTx, {
       skipPreflight: true,
     });
-
-    console.log(
-      "✅ Switchboard Account Successfully confirmed on Devnet! ",
-      sig1
-    );
-
-    console.log(
-      "Sending TX 2: Updating smart contracts switchboard's address..."
-    );
-
-    // ────── MANUAL THROW + QUIET CHECK (fixes the "Unknown action" error) ──────
-    const tx = await anchor.workspace.LordsPot.methods
-      .initialize(rngKp.publicKey)
-      .accounts({
-        signer: wallet.publicKey,
-        randomnessAccount: randomnessAccountPDA,
-        systemProgram: anchor.web3.SystemProgram.programId,
-      })
-      .transaction();
-
-
-    const latestBlockhash = await provider.connection.getLatestBlockhash(
-      "confirmed"
-    );
-    tx.recentBlockhash = latestBlockhash.blockhash;
-    tx.feePayer = wallet.publicKey;
-
-    const signedTx = await wallet.signTransaction(tx);
-    const signature = await provider.connection.sendRawTransaction(
-      signedTx.serialize(),
-      {
-        skipPreflight: true,
-        maxRetries: 10,
-      }
-    );
-
-    console.log("Transaction sent! Signature:", signature);
-    console.log(
-      "✅ Smart Contract's Account Successfully Updated on DevNet!",
-      signature
-    );
-  } catch (error) {
-    console.error(
-      "Error while generating 1st Switchboard account & signing the updated state",
-      error
-    );
-    throw error;
+    console.log("Switchboard Randomness Account Created! Tx:", sig1);
+  } catch (e) {
+    console.log("Switchboard account might already exist. Proceeding...");
   }
+
+  // ============================================================================
+  // STEP 2: INITIALIZE LORDSPOT
+  // ============================================================================
+  console.log("\n--- STEP 2: Initializing LordsPot ---");
+
+  const initTx = await lordsPotProgram.methods
+      .initialize(
+          rngKp.publicKey,
+          30,
+          new anchor.BN(1_100_000).mul(new anchor.BN(1_000_000)),
+          new anchor.BN(1_000_000),
+          new anchor.BN(300_000_000_000),
+          5,
+          65,
+          80,
+          new anchor.BN(0),
+          new anchor.BN(100_000).mul(new anchor.BN(1_000_000)),
+          new anchor.BN(86400)
+      )
+      .accounts({
+        tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+      })
+      .rpc({ commitment: "confirmed" });
+
+  console.log("Initializing LordsPot Tx:", initTx);
+
+  // ============================================================================
+  // STEP 3: LP DEPOSIT (1.1 Million USDC)
+  // ============================================================================
+
+  console.log("\n--- STEP 3: Initial LP Deposit ---");
+
+  const DEPOSIT_AMOUNT = new anchor.BN(1_100_000).mul(new anchor.BN(1_000_000));
+
+  const depositTx = await lordsPotProgram.methods
+      .lpDeposit(DEPOSIT_AMOUNT)
+      .accounts({
+        depositEpochState: perEpochState0Pda,
+        prevPerEpochState: null,
+        protocolUsdcVault: protocolUsdcVaultAta,
+        tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+      } as any)
+      .rpc({ commitment: "confirmed" });
+
+  console.log("LP Deposited! Tx:", depositTx);
+
+  // ============================================================================
+  // STEP 4: INIT LORDSPOT (START THE PROTOCOL)
+  // ============================================================================
+  console.log("\n--- STEP 4: Starting LordsPot Protocol ---");
+
+
+  const nowTime = new anchor.BN(Math.floor(Date.now() / 1000));
+
+  const initLordsPotTx = await lordsPotProgram.methods
+      .initLordspot(nowTime)
+      .accounts({
+        prevPerEpochStateAccount : null
+      })
+      .rpc({ commitment: "confirmed" });
+
+  console.log("Protocol Started! Tx:", initLordsPotTx);
+  console.log("\nDeployment Complete!");
 };
-
-// const tx = await anchor.workspace.LordsPot.methods
-//   .closeState()
-//   .accounts({
-//     signer: wallet.publicKey,
-//     randomnessAccount: randomnessAccountPDA,
-//   })
-//   .transaction();
-
-
-
-// anchor deploy --provider.cluster https://solana-devnet.g.alchemy.com/v2/nbTtI0XS4ZCs4VoxN_ITW
-// .so file deployed : 2Nkn4hstSnThpE2j1SbNwff7ZgRcevzwGb8UdvZ2r6Hc6VyCYzYyw3z9ed8HSdyh9M9qYNYXHSpTGYMAX1YXT6gu
-
-// anchor migrate --provider.cluster "https://devnet.helius-rpc.com/?api-key="
-// init or deploy.ts sig :
-
-// anchor idl init --filepath target/idl/lords_pot.json --provider.cluster "https://devnet.helius-rpc.com/?api-key=" 7eBJpDhqrtdEyBnrHwNb6QEbJ4YQxz9k2KacKH6oe9W6
-// Idl data length: 719 bytes
-// Step 0/719
-// Step 600/719
-// Idl account created: BcUuVvTAuDQonbE8PDWCaNWomxCJnK9vg7MhsNQx98MP
-
-// solana account 5CQmLHNx2PkeeRKCj1qDGJhhFnTxXAcCrhXmdRnq9fiY --url "https://devnet.helius-rpc.com/?api-key="
-
-
-// anchor test --skip-local-validator --skip-deploy --provider.cluster "https://devnet.helius-rpc.com/?api-key="

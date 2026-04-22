@@ -1,8 +1,28 @@
+# Anchor & Solana
 .anchor
-.DS_Store
 target
-**/*.rs.bk
-node_modules
 test-ledger
+**/*.rs.bk
+surfnet-state.sqlite
+
+# Node & Package Managers
+node_modules
 .yarn
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment & Secrets
 .env
+tests/utils/keys
+
+# System Files
+.DS_Store
+Thumbs.db
+
+# Surfpool local state & logs
+.surfpool/
+*.log
+
+# Deployment Signers / Sensitive TX data
+runbooks/deployment/signers.*.tx

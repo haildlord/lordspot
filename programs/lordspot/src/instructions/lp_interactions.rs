@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token_interface::{Mint, TokenInterface, TokenAccount, TransferChecked, transfer_checked};
-use crate::constants::{MOCK_USDC_DEVNET_ADDRESS, SEED_GLOBAL, SEED_PROTOCOL_USDC_ACCOUNT, SEED_LP_INFO, SEED_LP_DRAWING_STATE, SEED_PER_EPOCH, SEED_DRAWING_STATE};
+use crate::constants::{MOCK_USDC_DEVNET_ADDRESS, SEED_GLOBAL, SEED_LP_INFO, SEED_LP_DRAWING_STATE, SEED_PER_EPOCH, SEED_DRAWING_STATE};
 use crate::error::LordspotError;
 use crate::state::{DrawingState, EpochIdToLPDrawingState, GlobalState, PerEpochState};
 use crate::state::lp_related_state::LPInfo;
@@ -36,7 +36,7 @@ pub fn lp_deposit_handler(
     )?;
 
     // Save bump only on first creation
-    if ctx.accounts.lp_info_account.to_account_info().data_len() == 0 {
+    if ctx.accounts.lp_info_account.bump == 0 {
         ctx.accounts.lp_info_account.bump = ctx.bumps.lp_info_account;
     }
 
@@ -57,8 +57,8 @@ pub struct LpDeposit<'info> {
 
     #[account(
         seeds = [SEED_DRAWING_STATE, global_state_account.current_epoch_id.to_le_bytes().as_ref()],
-        bump,
-        constraint = global_state_account.current_epoch_id == 0 || drawing_state_account.lordspot_lock == false @ LordspotError::LordspotLocked
+        bump = drawing_state_account.bump,
+        constraint = drawing_state_account.lordspot_lock == false @ LordspotError::LordspotLocked
     )]
     pub drawing_state_account: Account<'info, DrawingState>,
 
@@ -79,8 +79,6 @@ pub struct LpDeposit<'info> {
 
     #[account(
         mut,
-        seeds = [SEED_PROTOCOL_USDC_ACCOUNT],
-        bump,
         token::mint = usdc_mint,
         token::authority = global_state_account,
     )]
@@ -105,23 +103,13 @@ pub struct LpDeposit<'info> {
     // Historical epoch state for consolidation (only needed if lastDeposit exists)
     #[account(
         seeds = [SEED_PER_EPOCH, lp_info_account.last_deposit_info.epoch_id.to_le_bytes().as_ref()],
-        bump,
+        bump = deposit_epoch_state.bump,
     )]
     pub deposit_epoch_state: Account<'info, PerEpochState>,
 
-    // Previous epoch state (for pending withdrawals calculation)
-    // #[account(
-    //     seeds = [SEED_PER_EPOCH, prev_epoch_id.to_le_bytes().as_ref()],
-    //     bump,
-    //     constraint = global_state_account.current_epoch_id == 0
-    //         || prev_epoch_id == global_state_account.current_epoch_id - 1
-    //         @ LordspotError::InvalidPreviousEpochId
-    // )]
-    // pub prev_per_epoch_state: Option<Account<'info, PerEpochState>>,
-
     #[account(
         seeds = [SEED_PER_EPOCH, global_state_account.current_epoch_id.saturating_sub(1).to_le_bytes().as_ref()],
-        bump
+        bump = prev_per_epoch_state.bump
     )]
     pub prev_per_epoch_state: Option<Account<'info, PerEpochState>>,
 

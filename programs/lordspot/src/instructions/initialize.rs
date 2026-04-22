@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use crate::constants::{ADMIN_PUBKEY, SEED_PER_EPOCH, SEED_GLOBAL, PRECISE_UNIT, SEED_LP_DRAWING_STATE, SEED_PROTOCOL_USDC_ACCOUNT, MOCK_USDC_DEVNET_ADDRESS, SEED_DRAWING_STATE, SEED_TICKET_TRACKER};
+use crate::constants::{ADMIN_PUBKEY, SEED_PER_EPOCH, SEED_GLOBAL, PRECISE_UNIT, SEED_LP_DRAWING_STATE, MOCK_USDC_DEVNET_ADDRESS, SEED_DRAWING_STATE, SEED_TICKET_TRACKER};
 use crate::state::{PerEpochState, GlobalState, EpochIdToLPDrawingState, DrawingState, TicketTracker};
 use crate::error::LordspotError;
 use crate::utility::main::*;
@@ -36,7 +36,6 @@ pub fn init_handler(
         protocol_fee,
         protocol_fee_threshold,
         ctx.bumps.global_state_account,
-        ctx.bumps.protocol_usdc_vault,
         drawing_duration
     )?;
 
@@ -58,6 +57,10 @@ pub fn init_handler(
         special_ball_soft_cap,
         pool_total_cap,
     )?;
+
+    let drawing_state = &mut ctx.accounts.drawing_state_account;
+    drawing_state.bump = ctx.bumps.drawing_state_account;
+    drawing_state.lordspot_lock = false;
 
     Ok(())
 }
@@ -141,10 +144,17 @@ pub struct Initialize<'info> {
     #[account(
         init,
         payer = signer,
-        token::mint = usdc_mint,
-        token::authority = global_state_account,
-        seeds=[SEED_PROTOCOL_USDC_ACCOUNT],
+        space = 8 + DrawingState::INIT_SPACE,
+        seeds = [SEED_DRAWING_STATE, 0u64.to_le_bytes().as_ref()],
         bump
+    )]
+    pub drawing_state_account: Account<'info, DrawingState>,
+
+    #[account(
+        init,
+        payer = signer,
+        associated_token::mint = usdc_mint,
+        associated_token::authority = global_state_account,
     )]
     pub protocol_usdc_vault : InterfaceAccount<'info, TokenAccount>,
 
@@ -163,6 +173,7 @@ pub struct InitializeLordsPot<'info> {
     pub signer : Signer<'info>,
 
     #[account(
+        mut,
         seeds = [SEED_GLOBAL],
         bump = global_state_account.bump,
         constraint = global_state_account.current_epoch_id == 0 @ LordspotError::LordspotAlreadyInitialized

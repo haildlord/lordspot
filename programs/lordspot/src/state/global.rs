@@ -21,7 +21,6 @@ pub struct DrawingState {
 pub struct GlobalState {
     // ── PDA Bumps ─────────────────────────────────────
     pub bump: u8,                   // GlobalState bump
-    pub protocol_usdc_vault_bump: u8,
 
     // ── Switchboard / Oracle Config ───────────────────
     pub switchboard_random_account: Pubkey,
