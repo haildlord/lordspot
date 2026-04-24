@@ -157,6 +157,15 @@ pub enum LordspotError {
     TooManyDraws,
 
     #[msg("Internal Math Error")]
-    InternalMathError
+    InternalMathError,
+
+    #[msg("While buying marbles are not sorted.")]
+    UnsortedMarbles,
+
+    #[msg("User has reached the maximum ticket limit (50) for this epoch")]
+    UserEpochLimitReached,
+
+    #[msg("The global protocol has reached its maximum ticket capacity (1200) for this epoch")]
+    GlobalEpochLimitReached,
 
 }

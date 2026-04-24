@@ -1,10 +1,13 @@
 import * as anchor from "@coral-xyz/anchor";
 import * as sb from "@switchboard-xyz/on-demand";
 import { LordsPot } from "../target/types/lords_pot";
+import { LordsMockUsdc } from "../target/types/lords_mock_usdc";
 import {loadOrCreateKeypair} from "../tests/utils/utils";
 import {
-  protocolUsdcVaultAta,
-  perEpochState0Pda,
+  DEVNET_SB_PROGRAM_ID,
+  DEVNET_QUEUE_PUBKEY,
+  getPerEpochStatePda,
+  getProtocolUsdcVaultAta, DEVNET_LUSDC_MINT
 } from "../tests/utils/seeds_and_ata";
 
 // ============================================================================
@@ -13,50 +16,66 @@ import {
 module.exports = async function (provider: anchor.AnchorProvider) {
 
   anchor.setProvider(provider);
-  const wallet = provider.wallet as anchor.Wallet;
-
-  console.log("Deploying to Surfnet (persistent):", provider.connection.rpcEndpoint);
-  console.log("Default Deployer Wallet:", wallet.publicKey.toBase58());
+  const mainWallet = provider.wallet as anchor.Wallet;
 
   const lordsPotProgram = anchor.workspace.LordsPot as anchor.Program<LordsPot>;
+  const lordsMockUsdcProgram = anchor.workspace.LordsMockUsdc as anchor.Program<LordsMockUsdc>;
+
+  // FhfL8dDFL9hH6WYQW3R2n58pjxaCdG6brA9JSZAVksTj
   const rngKp = loadOrCreateKeypair("rng.json");
+  // fxa8eqxt3upBxWfDorTPoAi8nfoW1xzjzD1sbUaPahm
   const rngAuthorityKp = loadOrCreateKeypair("rng_authority.json");
 
   console.log("RNG Account Pubkey:", rngKp.publicKey.toBase58());
   console.log("RNG Authority Pubkey (Keep Private Key safe!):", rngAuthorityKp.publicKey.toBase58());
 
-  const queue = await sb.getDefaultQueue(provider.connection.rpcEndpoint);
-  const sbProgramId = await sb.getProgramId(provider.connection);
-  const sbProgram = await anchor.Program.at(sbProgramId, provider);
 
   // ============================================================================
-  // STEP 1: CREATE SWITCHBOARD RANDOMNESS ACCOUNT
+  // STEP 1: CREATE SWITCHBOARD RANDOMNESS ACCOUNT (FULLY LOCAL FORK MODE)
   // ============================================================================
   console.log("\n--- STEP 1: Setting up Switchboard Randomness ---");
+
+  // 2. Use your STANDARD Localnet provider! No more separate Devnet connection needed.
+  const sbProgram = await anchor.Program.at(DEVNET_SB_PROGRAM_ID, provider);
+
+  console.log("Queue Pubkey:", DEVNET_QUEUE_PUBKEY.toBase58());
+  console.log("Switchboard Program Pubkey:", DEVNET_SB_PROGRAM_ID.toBase58());
 
   try {
     const [randomness, ix] = await sb.Randomness.create(
         sbProgram as any,
         rngKp,
-        queue.pubkey,
+        DEVNET_QUEUE_PUBKEY,
         rngAuthorityKp.publicKey
     );
 
     const createRandomnessTx = await sb.asV0Tx({
-      connection: provider.connection,
+      connection: provider.connection, // Back to local!
       ixs: [ix],
-      payer: wallet.publicKey,
-      signers: [wallet.payer, rngKp, rngAuthorityKp],
+      payer: rngAuthorityKp.publicKey, // Paid by the 2 SOL in real Devnet
+      signers: [rngKp, rngAuthorityKp],
       computeUnitPrice: 75_000,
       computeUnitLimitMultiple: 1.3,
     });
 
     const sig1 = await provider.connection.sendTransaction(createRandomnessTx, {
-      skipPreflight: true,
+      skipPreflight: false,
     });
-    console.log("Switchboard Randomness Account Created! Tx:", sig1);
+
+    const latestBlockhash = await provider.connection.getLatestBlockhash();
+    await provider.connection.confirmTransaction({
+      signature: sig1,
+      blockhash: latestBlockhash.blockhash,
+      lastValidBlockHeight: latestBlockhash.lastValidBlockHeight
+    }, "confirmed");
+
+    console.log("Switchboard Randomness Account Created Locally! Tx:", sig1);
+
   } catch (e) {
-    console.log("Switchboard account might already exist. Proceeding...");
+    console.error("\nCRITICAL FAILURE: Could not create Switchboard Randomness Account!");
+    console.error(e);
+    // Stop the deployment immediately so we don't deploy a broken protocol
+    process.exit(1);
   }
 
   // ============================================================================
@@ -93,12 +112,17 @@ module.exports = async function (provider: anchor.AnchorProvider) {
 
   const DEPOSIT_AMOUNT = new anchor.BN(1_100_000).mul(new anchor.BN(1_000_000));
 
+  let tx1 = await lordsMockUsdcProgram.methods.mintMockUsdc(DEPOSIT_AMOUNT).accounts({
+    mint: DEVNET_LUSDC_MINT,
+    tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID
+  }).rpc({ commitment: "confirmed" });
+
   const depositTx = await lordsPotProgram.methods
       .lpDeposit(DEPOSIT_AMOUNT)
       .accounts({
-        depositEpochState: perEpochState0Pda,
+        depositEpochState: getPerEpochStatePda(0)[0],
         prevPerEpochState: null,
-        protocolUsdcVault: protocolUsdcVaultAta,
+        protocolUsdcVault: getProtocolUsdcVaultAta(),
         tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
       } as any)
       .rpc({ commitment: "confirmed" });

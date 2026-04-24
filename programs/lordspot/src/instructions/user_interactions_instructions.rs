@@ -7,13 +7,13 @@ use crate::error::LordspotError;
 use crate::utility::user_related_utility::*;
 
 
-pub fn buy_ticket_handler<'info>(
-    ctx: Context<'_, '_, 'info, 'info, BuyTicket<'info>>,
+pub fn buy_ticket_handler(
+    ctx: Context<BuyTicket>,
     tickets: Vec<TicketInput>,
 ) -> Result<()> {
 
     require!(tickets.len() > 0,   LordspotError::NoTicketsProvided);
-    require!(tickets.len() <= 50, LordspotError::TooManyTickets);
+    require!(tickets.len() <= 20, LordspotError::TooManyTickets);
 
     let user_tickets = &mut ctx.accounts.user_tickets;
 
@@ -25,6 +25,20 @@ pub fn buy_ticket_handler<'info>(
         user_tickets.claimed = Vec::new();
         user_tickets.bump = ctx.bumps.user_tickets;
     }
+
+
+    // Check if this purchase pushes the user over their historical account limit (50)
+    require!(
+        user_tickets.tickets.len() + tickets.len() <= 50,
+        LordspotError::UserEpochLimitReached
+    );
+
+    // Check if this purchase pushes the global tracker over its limit (1200 total)
+    let tracker = &ctx.accounts.ticket_tracker;
+    require!(
+        tracker.unique_tickets.len() + tracker.duplicate_tickets.len() + tickets.len() <= 1200,
+        LordspotError::GlobalEpochLimitReached
+    );
 
     // 2. Calculate Total Cost
     let ticket_count = tickets.len() as u64;

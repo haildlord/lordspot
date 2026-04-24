@@ -4,11 +4,11 @@ use crate::error::LordspotError;
 use crate::state::{DrawingState, GlobalState, TicketTracker, UserTickets};
 use crate::instructions::user_interactions_instructions::TicketInput;
 
-pub fn _validate_and_store_tickets<'info>(
-    global_state: &Account<'info, GlobalState>,
-    ticket_tracker: &mut Account<'info, TicketTracker>,
-    user_tickets: &mut Account<'info, UserTickets>,
-    drawing: &mut Account<'info, DrawingState>,
+pub fn _validate_and_store_tickets(
+    global_state: &Account<GlobalState>,
+    ticket_tracker: &mut Account<TicketTracker>,
+    user_tickets: &mut Account<UserTickets>,
+    drawing: &mut Account<DrawingState>,
     tickets: &[TicketInput],
 ) -> Result<()> {
     let edge = global_state.edge_per_ticket;
@@ -24,12 +24,26 @@ pub fn _validate_and_store_tickets<'info>(
             LordspotError::InvalidNormalsCount
         );
 
-        let mut seen = [false; 256];
+        let mut previous_ball = 0u8; // Start at 0
+
         for &ball in &ticket_input.normal_marbles {
-            if ball == 0 || ball > global_state.normal_marble_max || seen[ball as usize] {
+            // 1. Check for Out of Bounds first
+            if ball == 0 || ball > global_state.normal_marble_max {
+                return Err(LordspotError::InvalidMarble.into());
+            }
+
+            // 2. Specifically catch duplicates
+            if ball == previous_ball {
                 return Err(LordspotError::DuplicateMarble.into());
             }
-            seen[ball as usize] = true;
+
+            // 3. Specifically catch unsorted (out of order) numbers
+            if ball < previous_ball {
+                return Err(LordspotError::UnsortedMarbles.into());
+            }
+
+            // 4. Update previous_ball for the next loop iteration
+            previous_ball = ball;
         }
 
         require!(

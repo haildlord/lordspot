@@ -99,7 +99,6 @@ pub fn save_random_num_handler(ctx: Context<SaveRandomNum>) -> Result<()> {
 }
 
 // ! any for loop for longer duration would practically make the protocol DOS, cuzz protocol is gonna be locked and you cannot run_jackpot_handler to make it false
-// ! also you wont be manually delete tickets from users & global tracker !
 pub fn run_jackpot_handler(ctx: Context<RunJackpot>) -> Result<()> {
     let drawing = &mut ctx.accounts.drawing_state_account;
     let tracker = &ctx.accounts.ticket_tracker;

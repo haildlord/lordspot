@@ -61,8 +61,12 @@ pub mod lords_pot {
         Ok(())
     }
 
+    pub fn buy_tickets(ctx: Context<BuyTicket>, amount_to_buy : Vec<TicketInput>) -> Result<()> {
+        buy_ticket_handler(ctx, amount_to_buy)?;
+        Ok(())
+    }
 
-    //
+
     // pub fn close_state(ctx : Context<CloseState>) -> Result<()> {
     //     close_handler(ctx)?;
     //     Ok(())

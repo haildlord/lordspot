@@ -3,15 +3,15 @@ import { assert } from "chai";
 import {LordsPot} from  "../target/types/lords_pot";
 import {loadOrCreateKeypair} from "./utils/utils";
 import {
-    globalStatePda,
-    perEpochState0Pda,
-    perEpoch0LPDrawingState,
-    epoch1LpDrawingStatePda,
-    epoch1DrawingStatePda,
-    epoch1TicketTrackerPda,
+    DEVNET_SB_PROGRAM_ID,
+    getGlobalStatePda,
+    getPerEpochStatePda,
     getLpInfoPda,
+    getLpDrawingStatePda,
+    getDrawingStatePda,
+    getTicketTrackerPda,
 } from "./utils/seeds_and_ata";
-
+import * as sb from "@switchboard-xyz/on-demand";
 
 describe("After Init", () => {
     const anchorProvider = anchor.AnchorProvider.env();
@@ -19,7 +19,6 @@ describe("After Init", () => {
 
     // loading IDL of LordsPot
     const lordsPotProgram = anchor.workspace.LordsPot as anchor.Program<LordsPot>;
-    let lusdcProgram: anchor.Program;
 
     // H8Q7CUvPigtSxfd13TKRuFrwdJtc6pJu9BMNhbXF9yAY as getting default wallet provided by typescript
     const defaultWallet = anchorProvider.wallet;
@@ -32,8 +31,11 @@ describe("After Init", () => {
 
     // STEP 1) state check after init_handler()
     it("initialize state check", async () => {
-        const globalState = await lordsPotProgram.account.globalState.fetch(globalStatePda);
-        const epochState0 = await lordsPotProgram.account.perEpochState.fetch(perEpochState0Pda);
+
+        let [globalPDA] = getGlobalStatePda();
+        let [perEpoch0PDA] = getPerEpochStatePda(0);
+        const globalState = await lordsPotProgram.account.globalState.fetch(globalPDA);
+        const epochState0 = await lordsPotProgram.account.perEpochState.fetch(perEpoch0PDA);
 
         assert.equal(globalState.normalMarbleMax, 30, "Normal marble max mismatch");
         assert.equal(globalState.specialBallMin, 5, "Special marble min mismatch");
@@ -101,22 +103,7 @@ describe("After Init", () => {
 
     // STEP 2) lusdc mint + lp_deposit
     it("lp_deposit state check", async () => {
-
-        // lusdcProgram = await anchor.Program.at(DEVNET_LUSDC_PROGRAM_ID, anchorProvider);
-        // let lpMintATA = getUserMintATA(defaultWallet.publicKey);
-        //
-        // let tx1 = await lusdcProgram.methods.mintMockUsdc(expectedTotal).accounts({
-        //     mint: DEVNET_LUSDC_MINT,
-        //     destination: lpMintATA,
-        //     mintAuthorityPda: lUsdcMintAuthorityPDA,
-        //     tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID
-        // }).rpc({ commitment: "confirmed" });
-        //
-        // let tx2 = await lordsPotProgram.methods.lpDeposit(expectedTotal).accounts({
-        //     tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
-        // }).rpc({ commitment: "confirmed" });
-
-        let epochState0LPDrawingState = await lordsPotProgram.account.epochIdToLpDrawingState.fetch(perEpoch0LPDrawingState);
+        let epochState0LPDrawingState = await lordsPotProgram.account.epochIdToLpDrawingState.fetch(getLpDrawingStatePda(0)[0]);
         assert.equal(
             epochState0LPDrawingState.pendingDeposits.toString(),
             expectedTotal.toString(),
@@ -143,16 +130,42 @@ describe("After Init", () => {
     // STEP 3) init_lordspot for buyers & Lp's
     it("init_lordspot state check", async () => {
 
-        // 3. Fetch the updated state accounts
-        const globalState = await lordsPotProgram.account.globalState.fetch(globalStatePda);
-        const epoch1LpDrawingState = await lordsPotProgram.account.epochIdToLpDrawingState.fetch(epoch1LpDrawingStatePda);
-        const epoch1DrawingState = await lordsPotProgram.account.drawingState.fetch(epoch1DrawingStatePda);
-        const epoch1TicketTracker = await lordsPotProgram.account.ticketTracker.fetch(epoch1TicketTrackerPda);
-
+        const globalState = await lordsPotProgram.account.globalState.fetch(
+            getGlobalStatePda()[0]
+        );
+        const epoch1LpDrawingState = await lordsPotProgram.account.epochIdToLpDrawingState.fetch(
+            getLpDrawingStatePda(1)[0]
+        );
+        const epoch1DrawingState = await lordsPotProgram.account.drawingState.fetch(
+            getDrawingStatePda(1)[0]
+        );
+        const epoch1TicketTracker = await lordsPotProgram.account.ticketTracker.fetch(
+            getTicketTrackerPda(1)[0]
+        );
 
         console.log("Fetching Global State Updates...");
         assert.equal(globalState.allowTicketPurchase, true, "Ticket purchase should be allowed");
         assert.equal(globalState.currentEpochId.toNumber(), 1, "Current epoch ID should be incremented to 1");
+
+        // 1. Point the provider to your LOCAL Surfpool cluster
+        const localProvider = anchor.AnchorProvider.env();
+        anchor.setProvider(localProvider);
+
+        // 3. Load the program locally
+        const sbProgramLocal = await anchor.Program.at(DEVNET_SB_PROGRAM_ID, localProvider);
+
+        // 4. Fetch the Randomness account from your local Surfpool
+        const randomnessAccount = new sb.Randomness(sbProgramLocal as any, rngKp.publicKey);
+        const randomnessState = await randomnessAccount.loadData();
+
+        console.log("Found Authority on Local Surfpool:", randomnessState.authority.toBase58());
+
+        // 5. Run your exact same assertion
+        assert.equal(
+            randomnessState.authority.toBase58(),
+            rngAuthorityKp.publicKey.toBase58(),
+            "Switchboard Randomness Authority mismatch!"
+        );
 
         console.log("Fetching Epoch 1 LP Drawing State...");
         assert.equal(
@@ -176,7 +189,7 @@ describe("After Init", () => {
             0,
             "Drawing time mismatch"
         );
-        console.log(  epoch1DrawingState.drawingTime.toNumber()); // 1776891238
+        console.log(  epoch1DrawingState.drawingTime.toNumber()); // 1776997056
 
         assert.equal(epoch1DrawingState.winningTicket.toNumber(),0, "Winning Ticket should be 0");
         assert.equal(epoch1DrawingState.totalTickets.toNumber(), 0, "Total tickets should be 0");

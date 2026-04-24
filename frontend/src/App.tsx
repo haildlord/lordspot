@@ -5,11 +5,11 @@ import { WalletModalProvider, WalletMultiButton } from '@solana/wallet-adapter-r
 import { PhantomWalletAdapter } from '@solana/wallet-adapter-wallets';
 import { clusterApiUrl } from '@solana/web3.js';
 import '@solana/wallet-adapter-react-ui/styles.css';
-import { Faucet } from './pages/Faucet';
 import { Toaster } from 'react-hot-toast';
 
 import { Home } from './pages/Home';
 import { BuyTickets } from './pages/BuyTickets';
+import { Faucet } from './pages/Faucet';
 import { MyTickets } from './pages/MyTickets';
 
 export const App = () => {
@@ -22,69 +22,58 @@ export const App = () => {
             <WalletProvider wallets={wallets} autoConnect>
                 <WalletModalProvider>
                     <Router>
-                        <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-black text-white font-sans overflow-x-hidden relative">
-                            {/* Premium Navbar */}
-                            <nav className="glass border-b border-white/10 sticky top-0 z-50">
-                                <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 md:py-5">
+                        <div className="min-h-screen text-white font-sans relative">
+                            {/* Ambient Global Background */}
+                            <div className="bg-orb-1" />
+                            <div className="bg-orb-2" />
+
+                            {/* Ultra-Premium Glass Navbar */}
+                            <nav className="glass-nav sticky top-0 z-50">
+                                <div className="max-w-7xl mx-auto px-4 md:px-8 py-4">
                                     <div className="flex justify-between items-center">
 
-                                        {/* Logo & Desktop Nav */}
-                                        <div className="flex items-center gap-10 shrink-0">
-                                            {/* Logo */}
-                                            <div className="flex items-center gap-2 md:gap-3 relative z-50">
-                                                <div className="w-7 h-7 md:w-9 md:h-9 bg-gradient-to-br from-purple-500 to-amber-400 rounded-xl md:rounded-2xl flex items-center justify-center text-lg md:text-2xl shadow-lg shadow-purple-500/50">
-                                                    👑
-                                                </div>
-                                                {/* Scaled down logo text slightly on mobile to make room for the wallet button */}
-                                                <h1 className="text-xl md:text-3xl font-black tracking-tighter neon-purple">
-                                                    LORDSPOT
+                                        {/* Logo & Nav */}
+                                        <div className="flex items-center gap-12 shrink-0">
+                                            <Link to="/" className="flex items-center gap-3 relative z-50 group">
+                                                <h1 className="text-2xl font-black tracking-[0.2em] text-white">
+                                                    LORDS<span className="text-[#D4AF37]">POT</span>
                                                 </h1>
-                                            </div>
+                                            </Link>
 
-                                            {/* Desktop Navigation */}
                                             <div className="hidden lg:block">
                                                 <NavLinks />
                                             </div>
                                         </div>
 
-                                        {/* Wallet Button & Mobile Toggle */}
-                                        <div className="flex items-center gap-2 sm:gap-4 relative z-50">
-                                            {/* FIXED:
-                                                1. Added !whitespace-nowrap to stop text splitting
-                                                2. Added shrink-0 to prevent the button from being squashed
-                                                3. Added mobile-specific padding (!px-3 !py-2) and text sizes (!text-xs)
-                                            */}
-                                            <WalletMultiButton className="!bg-gradient-to-r !from-purple-600 !to-amber-500 hover:!from-purple-500 hover:!to-amber-400 !font-bold !text-xs md:!text-base !px-3 md:!px-6 !py-2 md:!py-2.5 !rounded-xl md:!rounded-2xl !transition-all !shadow-lg !shadow-purple-500/30 !whitespace-nowrap shrink-0" />
+                                        {/* Wallet */}
+                                        <div className="flex items-center gap-4 relative z-50">
+                                            <WalletMultiButton className="!bg-white/5 hover:!bg-white/10 !border !border-white/10 !text-white !font-semibold !text-sm !px-6 !py-3 !rounded-xl !transition-all !whitespace-nowrap shrink-0 !h-auto" />
 
-                                            {/* Hamburger Menu Button */}
                                             <button
                                                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                                                className="lg:hidden p-1 text-slate-300 hover:text-amber-400 transition-colors"
-                                                aria-label="Toggle menu"
+                                                className="lg:hidden p-2 text-slate-400 hover:text-white transition-colors"
                                             >
-                                                {isMobileMenuOpen ? (
-                                                    <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                                                ) : (
-                                                    <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
-                                                )}
+                                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isMobileMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
+                                                </svg>
                                             </button>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Mobile Dropdown Menu */}
+                                {/* Mobile Menu */}
                                 {isMobileMenuOpen && (
-                                    <div className="lg:hidden absolute top-full left-0 w-full bg-slate-950 border-b border-white/10 shadow-2xl">
-                                        <div className="px-6 py-8">
+                                    <div className="lg:hidden absolute top-full left-0 w-full premium-glass border-t-0 shadow-2xl">
+                                        <div className="px-8 py-8">
                                             <NavLinks isMobile closeMenu={() => setIsMobileMenuOpen(false)} />
                                         </div>
                                     </div>
                                 )}
                             </nav>
 
-                            {/* Main Content */}
-                            <Toaster position="bottom-right" reverseOrder={false} />
-                            <main className="max-w-7xl mx-auto px-4 md:px-6 pt-6 md:pt-8 pb-12 md:pb-20">
+                            <Toaster position="bottom-right" toastOptions={{ style: { background: '#111', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' } }} />
+
+                            <main className="w-full">
                                 <Routes>
                                     <Route path="/" element={<Home />} />
                                     <Route path="/buy" element={<BuyTickets />} />
@@ -92,9 +81,6 @@ export const App = () => {
                                     <Route path="/my-tickets" element={<MyTickets />} />
                                 </Routes>
                             </main>
-
-                            {/* Footer glow line */}
-                            <div className="h-px bg-gradient-to-r from-transparent via-purple-500/30 to-transparent" />
                         </div>
                     </Router>
                 </WalletModalProvider>
@@ -103,31 +89,33 @@ export const App = () => {
     );
 };
 
-// Updated NavLinks component
 const NavLinks = ({ isMobile = false, closeMenu }: { isMobile?: boolean, closeMenu?: () => void }) => {
     const location = useLocation();
     const links = [
-        { path: '/', label: 'GRAND PRIZE' },
-        { path: '/buy', label: 'PLAY NOW' },
+        { path: '/', label: 'VAULT' },
+        { path: '/buy', label: 'ENTER DRAW' },
         { path: '/faucet', label: 'FAUCET' },
-        { path: '/my-tickets', label: 'MY VAULT' }
+        { path: '/my-tickets', label: 'MY TICKETS' }
     ];
 
     return (
-        <div className={`${isMobile ? 'flex flex-col gap-8' : 'flex gap-8'} text-sm font-semibold tracking-widest`}>
-            {links.map((link) => (
-                <Link
-                    key={link.path}
-                    to={link.path}
-                    onClick={closeMenu}
-                    className={`hover:text-amber-400 transition-all duration-300 relative w-fit ${location.pathname === link.path ? 'text-amber-400' : 'text-slate-300'} ${isMobile ? 'text-xl' : ''}`}
-                >
-                    {link.label}
-                    {location.pathname === link.path && (
-                        <div className="absolute -bottom-1 left-0 w-full h-0.5 bg-gradient-to-r from-purple-500 to-amber-400 rounded-full" />
-                    )}
-                </Link>
-            ))}
+        <div className={`${isMobile ? 'flex flex-col gap-6' : 'flex gap-8'} text-xs font-bold tracking-[0.15em] text-slate-400`}>
+            {links.map((link) => {
+                const isActive = location.pathname === link.path;
+                return (
+                    <Link
+                        key={link.path}
+                        to={link.path}
+                        onClick={closeMenu}
+                        className={`hover:text-white transition-colors relative py-2 ${isActive ? 'text-white' : ''} ${isMobile ? 'text-base' : ''}`}
+                    >
+                        {link.label}
+                        {isActive && (
+                            <div className="absolute bottom-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent" />
+                        )}
+                    </Link>
+                );
+            })}
         </div>
     );
 };
