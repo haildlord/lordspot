@@ -4,6 +4,7 @@ target
 test-ledger
 **/*.rs.bk
 surfnet-state.sqlite
+surfnet-temp.sqlite
 
 # Node & Package Managers
 node_modules
