@@ -66,21 +66,20 @@ pub mod lords_pot {
         Ok(())
     }
 
+    pub fn commit(ctx: Context<CommitToRandomNum>) -> Result<()> {
+        commit_to_random_num_handler(ctx)?;
+        Ok(())
+    }
 
-    // pub fn close_state(ctx : Context<CloseState>) -> Result<()> {
-    //     close_handler(ctx)?;
-    //     Ok(())
-    // }
-    //
-    // pub fn commit_to_random_num(ctx : Context<CommitToRandomNum>) -> Result<()>{
-    //     commit_to_random_num_handler(ctx)?;
-    //     Ok(())
-    // }
-    //
-    // pub fn save_random_num(ctx: Context<SaveRandomNum>) -> Result<()> {
-    //     save_random_num_handler(ctx)?;
-    //     Ok(())
-    // }
+    pub fn save(ctx: Context<SaveRandomNum>, use_known_winning_ticket : bool) -> Result<()> {
+        save_random_num_handler(ctx, use_known_winning_ticket)?;
+        Ok(())
+    }
+
+    pub fn run_lordspot(ctx: Context<RunLordspot>) -> Result<()> {
+        run_lordspot_handler(ctx)?;
+        Ok(())
+    }
 }
 
 

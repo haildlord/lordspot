@@ -53,7 +53,6 @@ pub struct GlobalState {
 #[derive(InitSpace)]
 pub struct PerEpochState {
     pub shares_percentage : u64, // drawingAccumulator[drawingId]
-    pub epoch_id : u64, // drawingId
     pub bump : u8,
 }
 

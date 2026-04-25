@@ -4,7 +4,6 @@ use anchor_lang::prelude::*;
 #[account]
 #[derive(InitSpace)]
 pub struct TicketTracker {
-    pub drawing_id: u64,
     #[max_len(600)]
     pub unique_tickets: Vec<u64>,
     #[max_len(600)]
@@ -17,7 +16,6 @@ pub struct TicketTracker {
 #[derive(InitSpace)]
 pub struct UserTickets {
     pub owner: Pubkey,
-    pub drawing_id: u64,
     #[max_len(50)]
     pub tickets: Vec<u64>,      // packed tickets this user bought
     #[max_len(50)]

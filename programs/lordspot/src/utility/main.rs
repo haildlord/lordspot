@@ -83,7 +83,6 @@ pub fn initialize_epoch_state(
     epoch_state: &mut PerEpochState,
     bump: u8,
 ) -> Result<()> {
-    epoch_state.epoch_id = 0;
     epoch_state.shares_percentage = PRECISE_UNIT;
     epoch_state.bump = bump;
     Ok(())

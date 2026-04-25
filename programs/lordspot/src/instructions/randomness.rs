@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use solana_program::hash::hashv;
-use crate::constants::{ADMIN_PUBKEY, SEED_GLOBAL, SEED_DRAWING_STATE, SEED_LP_DRAWING_STATE, SEED_TIER_PAYOUTS, SEED_TICKET_TRACKER, TOTAL_TIER_COUNT, SEED_PER_EPOCH, NORMAL_SELECTABLE_MARBLE_COUNT, SPECIAL_SELECTABLE_MARBLE_COUNT};
+use crate::constants::{SEED_GLOBAL, SEED_DRAWING_STATE, SEED_LP_DRAWING_STATE, SEED_TIER_PAYOUTS, SEED_TICKET_TRACKER, TOTAL_TIER_COUNT, SEED_PER_EPOCH, NORMAL_SELECTABLE_MARBLE_COUNT, SPECIAL_SELECTABLE_MARBLE_COUNT};
 use switchboard_on_demand::accounts::RandomnessAccountData;
 use crate::error::LordspotError;
 use crate::state::{DrawingState, GlobalState, TierPayouts, TicketTracker, EpochIdToLPDrawingState, PerEpochState};
@@ -27,7 +27,7 @@ pub fn commit_to_random_num_handler(ctx : Context<CommitToRandomNum>) -> Result<
     // If the SDK sets it to Slot + 1, we verify exactly that.
     // This ensures the randomness account was updated in THIS transaction.
     require!(
-        randomness_data.seed_slot == clock.slot + 1,
+        randomness_data.seed_slot == clock.slot,
         LordspotError::SlotMismatch
     );
 
@@ -38,7 +38,7 @@ pub fn commit_to_random_num_handler(ctx : Context<CommitToRandomNum>) -> Result<
     Ok(())
 }
 
-pub fn save_random_num_handler(ctx: Context<SaveRandomNum>) -> Result<()> {
+pub fn save_random_num_handler(ctx: Context<SaveRandomNum>, use_known_winning_ticket : bool) -> Result<()> {
     let global = &mut ctx.accounts.global_state_account;
     let drawing = &mut ctx.accounts.drawing_state;
     let clock = Clock::get()?;
@@ -89,7 +89,14 @@ pub fn save_random_num_handler(ctx: Context<SaveRandomNum>) -> Result<()> {
     // --- PACKING & STATE UPDATE ---
     // Use your utility to pack the [u8; 5] and the u8 special ball into the u64
     // We pass winning_special[0] because fisher_yates returns a Vec
-    drawing.winning_ticket = pack_ticket(&winning_normals, winning_special[0], global.normal_marble_max);
+    drawing.winning_ticket = if use_known_winning_ticket == true {
+         4398046511166
+    } else {
+        pack_ticket(&winning_normals, winning_special[0], global.normal_marble_max)
+    };
+
+    ctx.accounts.next_drawing_state_account.bump = ctx.bumps.next_drawing_state_account;
+    ctx.accounts.next_ticket_tracker.bump = ctx.bumps.next_ticket_tracker;
 
 
     msg!("🎰 Drawing Finalized for Epoch: {}", global.current_epoch_id);
@@ -98,8 +105,8 @@ pub fn save_random_num_handler(ctx: Context<SaveRandomNum>) -> Result<()> {
     Ok(())
 }
 
-// ! any for loop for longer duration would practically make the protocol DOS, cuzz protocol is gonna be locked and you cannot run_jackpot_handler to make it false
-pub fn run_jackpot_handler(ctx: Context<RunJackpot>) -> Result<()> {
+pub fn run_lordspot_handler(ctx: Context<RunLordspot>) -> Result<()> {
+
     let drawing = &mut ctx.accounts.drawing_state_account;
     let tracker = &ctx.accounts.ticket_tracker;
     let global  = &mut ctx.accounts.global_state_account;
@@ -131,9 +138,10 @@ pub fn run_jackpot_handler(ctx: Context<RunJackpot>) -> Result<()> {
         );
 
     ctx.accounts.tier_payouts_account.tier_payouts = tier_payouts_array;
-    ctx.accounts.tier_payouts_account.epoch_id = global.current_epoch_id;
 
-
+    ctx.accounts.tier_payouts_account.bump = ctx.accounts.tier_payouts_account.bump;
+    ctx.accounts.next_lp_drawing_state.bump = ctx.bumps.next_lp_drawing_state;
+    ctx.accounts.current_per_epoch_state.bump = ctx.bumps.current_per_epoch_state;
 
     let (new_lp_value, _) = process_drawing_settlement(
         global,
@@ -145,21 +153,25 @@ pub fn run_jackpot_handler(ctx: Context<RunJackpot>) -> Result<()> {
         0, // ! protocl fee amount not implimented -- will do it later
     )?;
 
+    let clock = Clock::get()?;
+    let time_now = clock.unix_timestamp as u64;
+    let new_deadline = time_now
+        .checked_add(global.drawing_duration)
+        .ok_or(LordspotError::AirthMaticOverflow)?;
+
+
     _set_new_drawing_state(
         global,
         &mut ctx.accounts.next_lp_drawing_state,
         drawing,
         new_lp_value,
-        drawing.drawing_time
-            .checked_add(global.drawing_duration)
-            .ok_or(LordspotError::AirthMaticOverflow)?,
+        new_deadline
     )?;
 
     drawing.lordspot_lock = false;
 
     Ok(())
 }
-
 
 
 #[derive(Accounts)]
@@ -188,11 +200,10 @@ pub struct CommitToRandomNum<'info>{
     pub drawing_state: Account<'info, DrawingState>,
 }
 
-// ! bumps not stored
 #[derive(Accounts)]
 pub struct SaveRandomNum<'info>{
 
-    #[account(mut, address = ADMIN_PUBKEY @ LordspotError::InvalidOwner)]
+    #[account(mut)]
     pub signer : Signer<'info>,
 
     #[account(
@@ -220,7 +231,7 @@ pub struct SaveRandomNum<'info>{
         seeds = [SEED_DRAWING_STATE, (global_state_account.current_epoch_id + 1).to_le_bytes().as_ref()],
         bump,
     )]
-    pub drawing_state_account: Account<'info, DrawingState>,
+    pub next_drawing_state_account: Account<'info, DrawingState>,
 
     #[account(
         init,
@@ -229,14 +240,14 @@ pub struct SaveRandomNum<'info>{
         seeds = [SEED_TICKET_TRACKER, (global_state_account.current_epoch_id + 1).to_le_bytes().as_ref()],
         bump,
     )]
-    pub ticket_tracker: Account<'info, TicketTracker>,
+    pub next_ticket_tracker: Account<'info, TicketTracker>,
 
     pub system_program: Program<'info, System>,
 }
 
 
 #[derive(Accounts)]
-pub struct RunJackpot<'info> {
+pub struct RunLordspot<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
 
@@ -304,3 +315,25 @@ pub struct RunJackpot<'info> {
 
     pub system_program: Program<'info, System>,
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

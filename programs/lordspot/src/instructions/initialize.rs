@@ -85,17 +85,20 @@ pub fn init_lordspot_handler(ctx: Context<InitializeLordsPot>, init_drawing_time
         0,   // protocol_fee
     )?;
 
+    let first_epoch_deadline = init_drawing_time
+        .checked_add(global.drawing_duration)
+        .ok_or(ProgramError::ArithmeticOverflow)?;
+
     _set_new_drawing_state(
         global,
         &mut ctx.accounts.next_drawing_id_to_lp_drawing_state,
         &mut ctx.accounts.next_drawing_state_account,
         new_lp_value,
-        init_drawing_time,
+        first_epoch_deadline,
     )?;
 
     // Initialize the TicketTracker
     let tracker = &mut ctx.accounts.ticket_tracker;
-    tracker.drawing_id = 1;                    // first real epoch
     tracker.bump = ctx.bumps.ticket_tracker;
 
     Ok(())

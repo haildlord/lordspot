@@ -82,8 +82,6 @@ describe("After Init", () => {
 
         // Check Per Epoch State
         console.log("Fetching Epoch 0 State...");
-        assert.equal(epochState0.epochId.toNumber(), 0, "Epoch ID mismatch in PerEpochState");
-
         // PRECISE_UNIT is usually 1e12, adjust this expected value to whatever you use
         assert.equal(
             epochState0.sharesPercentage.toString(),
@@ -189,7 +187,7 @@ describe("After Init", () => {
             0,
             "Drawing time mismatch"
         );
-        console.log(  epoch1DrawingState.drawingTime.toNumber()); // 1776997056
+        console.log(  epoch1DrawingState.drawingTime.toNumber()); // 1777197786
 
         assert.equal(epoch1DrawingState.winningTicket.toNumber(),0, "Winning Ticket should be 0");
         assert.equal(epoch1DrawingState.totalTickets.toNumber(), 0, "Total tickets should be 0");
@@ -197,7 +195,6 @@ describe("After Init", () => {
         assert.equal(epoch1DrawingState.lordspotLock, false, "Lordspot lock should be false");
 
         console.log("Fetching Epoch 1 Ticket Tracker...");
-        assert.equal(epoch1TicketTracker.drawingId.toNumber(), 1, "Ticket tracker drawing ID mismatch");
         assert.equal(epoch1TicketTracker.uniqueTickets.length, 0, "Unique tickets should be empty");
         assert.equal(epoch1TicketTracker.duplicateTickets.length, 0, "Duplicate tickets should be empty");
     });

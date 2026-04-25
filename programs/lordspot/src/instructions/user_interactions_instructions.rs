@@ -18,9 +18,8 @@ pub fn buy_ticket_handler(
     let user_tickets = &mut ctx.accounts.user_tickets;
 
     // 1. First-time initialization for this user in this epoch
-    if user_tickets.drawing_id == 0 {
+    if user_tickets.owner == Pubkey::default() {
         user_tickets.owner = ctx.accounts.signer.key();
-        user_tickets.drawing_id = ctx.accounts.global_state_account.current_epoch_id;
         user_tickets.tickets = Vec::new();
         user_tickets.claimed = Vec::new();
         user_tickets.bump = ctx.bumps.user_tickets;
