@@ -12,8 +12,6 @@ pub const SPECIAL_SELECTABLE_MARBLE_COUNT : u8 = 1;
 pub const MAX_MARBLE_RANGE_COUNT : u8 = 255;
 pub const TOTAL_TIER_COUNT : u8 = 12;
 
-pub const MAX_PROTOCOL_FEE : u64 = 2500;
-pub const BPS_UNIT : u64 = 10_000;
 
 // # Seeds :
 pub const SEED_PER_EPOCH: &[u8] = b"per_epoch_state_account";
@@ -24,27 +22,14 @@ pub const SEED_DRAWING_STATE : &[u8] = b"drawing_state_account";
 pub const SEED_TRACKER_PER_EPOCH : &[u8] = b"epoch_to_tracker_account";
 pub const SEED_BUCKET : &[u8] = b"ticket_bucket";
 pub const SEED_TICKET : &[u8] = b"buyers_ticket";
-pub const SEED_TALLY: &[u8] = b"tally_state";
 pub const SEED_TICKET_TRACKER: &[u8] = b"ticket_tracker";
 pub const SEED_USER_TICKETS: &[u8] = b"user_tickets";
-pub const SEED_TREE_AUTHORITY: &[u8]  = b"tree_authority";
 pub const SEED_TIER_PAYOUTS : &[u8] = b"tier_payouts_account";
-pub const METADATA_BASE_URL:   &str   = "https://your-app.railway.app/ticket";
 
+pub const MIN_PAYOUT: u64 = 0; // 1_111_112
+pub const PREMIUM_TIER_MIN_ALLOCATION: u64 = 0; // 200_000_000_000; // 20% = 0.2 * PRECISE_UNIT
 
-// depth 20 = max 1,048,576 tickets per epoch
-pub const TREE_MAX_DEPTH:       u32   = 20;
-pub const TREE_MAX_BUFFER_SIZE: u32   = 64;  // concurrent updates allowed
-pub const TREE_CANOPY_DEPTH:    u32   = 0;   // 0 = cheapest, no canopy
-
-// Add to the bottom of constants.rs
-pub const MIN_PAYOUT: u64 = 1_111_112;
-pub const PREMIUM_TIER_MIN_ALLOCATION: u64 = 200_000_000_000; // 20% = 0.2 * PRECISE_UNIT
-
-// Tier configuration
-pub const MIN_PAYOUT_TIERS: [bool; 12] = [
-    false, true, false, true, true, true, true, true, true, true, true, true,
-];
+pub const MIN_PAYOUT_TIERS: [bool; 12] = [false; 12];
 
 pub const PREMIUM_TIER_WEIGHTS: [u64; 12] = [
     0, 0, 0, 120_000_000_000,   // 12%

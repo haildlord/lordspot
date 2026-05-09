@@ -12,17 +12,17 @@
 
 @layer utilities {
   .text-glow-gold {
-    text-shadow: 0 0 20px rgba(212, 175, 55, 0.4), 0 0 40px rgba(212, 175, 55, 0.2);
+    text-shadow: 0 0 15px rgba(212, 175, 55, 0.4), 0 0 30px rgba(212, 175, 55, 0.2);
   }
 
   .text-glow-purple {
-    text-shadow: 0 0 20px rgba(168, 85, 247, 0.4), 0 0 40px rgba(168, 85, 247, 0.2);
+    text-shadow: 0 0 15px rgba(168, 85, 247, 0.4), 0 0 30px rgba(168, 85, 247, 0.2);
   }
 
   .premium-glass {
     background: rgba(15, 15, 20, 0.4);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
   }
@@ -83,17 +83,13 @@
   animation: urgentAlert 1.5s ease-in-out infinite;
 }
 
-.gold-glow {
-  box-shadow: 0 0 25px rgba(212, 175, 55, 0.4);
-}
-
 .ticket-ball {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .ticket-ball:hover {
-  transform: translateY(-6px) scale(1.08);
-  box-shadow: 0 0 30px rgba(212, 175, 55, 0.5);
+  transform: translateY(-4px) scale(1.05);
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.4);
 }
 
 .premium-button {
@@ -101,6 +97,19 @@
 }
 
 .premium-button:hover {
-  transform: translateY(-2px) scale(1.03);
-  box-shadow: 0 0 35px rgba(212, 175, 55, 0.4);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 0 25px rgba(212, 175, 55, 0.3);
+}
+
+/* Background containers for general use */
+.background-container {
+  position: fixed;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  z-index: -1; overflow: hidden; background-color: #000;
+}
+
+.container {
+  position: relative; z-index: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; min-height: 100vh;
+  color: #ffffff; font-family: sans-serif;
 }

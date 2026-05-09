@@ -3,6 +3,7 @@ use crate::utility::combinations::choose;
 use crate::constants::{NORMAL_SELECTABLE_MARBLE_COUNT, PRECISE_UNIT};
 use crate::error::LordspotError;
 use crate::state::{DrawingState, EpochIdToLPDrawingState, GlobalState, PerEpochState};
+use crate::event::*;
 
 
 /// Exactly matches Solidity _calculateNextDrawingLpPool
@@ -288,6 +289,15 @@ pub fn _set_new_drawing_state( global_state_account : &mut Account<GlobalState>,
     ) as u8;
 
     drawing_state_account.special_marble_max = new_bonus_ball;
+
+    emit!(EpochStartedEvent {
+        epoch_id: global_state_account.current_epoch_id,
+        prize_pool: drawing_state_account.prize_pool, // Or use new_lp_value
+        special_marble_max: drawing_state_account.special_marble_max,
+        drawing_time: drawing_state_account.drawing_time,
+        total_tickets: drawing_state_account.total_tickets, // Which is currently 0
+    });
+
 
     Ok(())
 }

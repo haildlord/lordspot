@@ -5,12 +5,13 @@ pub mod error;
 pub mod instructions;
 pub mod state;
 pub mod utility;
+pub mod event;
 
 
 
 pub use instructions::*;
 
-declare_id!("EWR8si6rA7qL56eqdGVTDwwfo7uXWfL82SisWeiovsu7");
+declare_id!("2cm7EMzH5ne9N8A8fDn6e2ZHtpBxwaFrYNGkpQcn8DAi");
 
 
 #[program]
@@ -80,6 +81,51 @@ pub mod lords_pot {
         run_lordspot_handler(ctx)?;
         Ok(())
     }
+
+    pub fn claim_rewards(ctx: Context<ClaimRewards>, _epoch_id: u64, packed_ticket_to_claim: u64) -> Result<()> {
+        claim_rewards_handler(ctx,_epoch_id,packed_ticket_to_claim)?;
+        Ok(())
+    }
+
+
+
+
+    // ! remove this function when deploying
+    pub fn universal_close(ctx: Context<UniversalClose>) -> Result<()> {
+        let target = &ctx.accounts.target_pda;
+        let receiver = &ctx.accounts.receiver;
+
+        // 1. Drain all lamports from the PDA and send them to the receiver
+        let lamports = target.lamports();
+        **target.lamports.borrow_mut() = 0;
+        **receiver.lamports.borrow_mut() = receiver.lamports().checked_add(lamports).unwrap();
+
+        // 2. Wipe the account data completely
+        // This ensures if anything tries to read it in the same transaction, it reads zeroes
+        let mut target_data = target.data.borrow_mut();
+        target_data.fill(0);
+
+        Ok(())
+    }
+
+    #[derive(Accounts)]
+    pub struct UniversalClose<'info> {
+        #[account(mut)]
+        pub admin: Signer<'info>,
+
+        /// CHECK: This is our universal testing wipe account.
+        /// We only enforce that this program actually owns the account being destroyed.
+        #[account(
+            mut,
+            owner = crate::ID
+        )]
+        pub target_pda: AccountInfo<'info>,
+
+        /// The account that will receive the reclaimed rent lamports
+        #[account(mut)]
+        pub receiver: SystemAccount<'info>,
+    }
+
 }
 
 

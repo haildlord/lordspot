@@ -1,10 +1,11 @@
 use anchor_lang::prelude::*;
 
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface, TransferChecked, transfer_checked};
-use crate::state::{GlobalState, DrawingState, TicketTracker, UserTickets};
-use crate::constants::{ SEED_GLOBAL, SEED_DRAWING_STATE, MOCK_USDC_DEVNET_ADDRESS, SEED_USER_TICKETS, SEED_TICKET_TRACKER};
+use crate::state::{GlobalState, DrawingState, TicketTracker, UserTickets, TierPayouts};
+use crate::constants::{ SEED_GLOBAL, SEED_DRAWING_STATE, MOCK_USDC_DEVNET_ADDRESS, SEED_USER_TICKETS, SEED_TICKET_TRACKER, SEED_TIER_PAYOUTS};
 use crate::error::LordspotError;
-use crate::utility::user_related_utility::*;
+use crate::event::*;
+use crate::utility::*;
 
 
 pub fn buy_ticket_handler(
@@ -13,9 +14,13 @@ pub fn buy_ticket_handler(
 ) -> Result<()> {
 
     require!(tickets.len() > 0,   LordspotError::NoTicketsProvided);
-    require!(tickets.len() <= 20, LordspotError::TooManyTickets);
 
     let user_tickets = &mut ctx.accounts.user_tickets;
+
+    require!(
+        user_tickets.tickets.len() + tickets.len() <= 50,
+        LordspotError::UserEpochLimitReached
+    );
 
     // 1. First-time initialization for this user in this epoch
     if user_tickets.owner == Pubkey::default() {
@@ -25,17 +30,11 @@ pub fn buy_ticket_handler(
         user_tickets.bump = ctx.bumps.user_tickets;
     }
 
-
-    // Check if this purchase pushes the user over their historical account limit (50)
-    require!(
-        user_tickets.tickets.len() + tickets.len() <= 50,
-        LordspotError::UserEpochLimitReached
-    );
-
     // Check if this purchase pushes the global tracker over its limit (1200 total)
     let tracker = &ctx.accounts.ticket_tracker;
+    // We check the SUM of both buckets. It cannot exceed 600 total tickets.
     require!(
-        tracker.unique_tickets.len() + tracker.duplicate_tickets.len() + tickets.len() <= 1200,
+        tracker.unique_tickets.len() + tracker.duplicate_tickets.len() + tickets.len() <= 600,
         LordspotError::GlobalEpochLimitReached
     );
 
@@ -61,7 +60,7 @@ pub fn buy_ticket_handler(
     )?;
 
     // 4. Validate, check duplicates, and update prize pool safely
-    _validate_and_store_tickets(
+    let packed_array = _validate_and_store_tickets(
         &ctx.accounts.global_state_account,
         &mut ctx.accounts.ticket_tracker,
         &mut ctx.accounts.user_tickets,
@@ -79,6 +78,14 @@ pub fn buy_ticket_handler(
     drawing.lp_earnings = drawing.lp_earnings
         .checked_add(total_cost)
         .ok_or(LordspotError::AirthMaticOverflow)?;
+
+    emit!(TicketsBoughtEvent {
+        buyer: ctx.accounts.signer.key(),
+        epoch_id: ctx.accounts.global_state_account.current_epoch_id,
+        packed_tickets: packed_array,
+        tickets_count : drawing.total_tickets,
+        total_cost,
+    });
 
     Ok(())
 }
@@ -154,194 +161,133 @@ pub struct TicketInput {
 }
 
 
-// ============================================================
-// ACCOUNTS STRUCT
-// ============================================================
+pub fn claim_rewards_handler<'info>(
+    ctx: Context<ClaimRewards>,
+    _epoch_id: u64,
+    packed_ticket_to_claim: u64
+) -> Result<()> {
+    let user_info = &mut ctx.accounts.user_tickets;
+    let winning_ticket = ctx.accounts.drawing_state_account.winning_ticket;
+    let normal_max = ctx.accounts.global_state_account.normal_marble_max;
 
-// pub fn claim_rewards_handler<'info>(
-//     ctx:      Context<'_, '_, 'info, 'info, ClaimRewards<'info>>,
-//     epoch_id: u64,  // which epoch this ticket belongs to
-// ) -> Result<()> {
-//
-//     // ----------------------------------------------------------
-//     // 1. VERIFY DRAWING IS COMPLETED
-//     //    ticket epoch must be strictly less than current epoch
-//     //    if equal — drawing still in progress
-//     // ----------------------------------------------------------
-//     require!(
-//         epoch_id < ctx.accounts.global_state_account.current_epoch_id,
-//         LordspotError::DrawingNotCompleted
-//     );
-//
-//     // ----------------------------------------------------------
-//     // 2. VERIFY CRANK IS SETTLED
-//     // ----------------------------------------------------------
-//     require!(
-//         ctx.accounts.tally_state.status == TallyStatus::Settled,
-//         LordspotError::TallyNotSettled
-//     );
-//
-//     // ----------------------------------------------------------
-//     // 3. VERIFY TICKET OWNERSHIP AND NOT ALREADY CLAIMED
-//     // ----------------------------------------------------------
-//     let ticket = &ctx.accounts.ticket_account;
-//
-//     require!(
-//         ticket.owner == ctx.accounts.signer.key(),
-//         LordspotError::InvalidOwner
-//     );
-//     require!(
-//         ticket.draw_id == epoch_id,
-//         LordspotError::InvalidEpochId
-//     );
-//     require!(
-//         !ticket.claimed,
-//         LordspotError::AlreadyClaimed
-//     );
-//
-//     // ----------------------------------------------------------
-//     // 4. COMPUTE TIER — same logic as crank
-//     //    popcount(ticket.bitvec AND winning_normals_bitvec) = normal matches
-//     //    check winning_special_bit_pos in ticket.bitvec = bonus hit
-//     // ----------------------------------------------------------
-//     let winning_normals  = ctx.accounts.tally_state.winning_normals_bitvec;
-//     let winning_special  = ctx.accounts.tally_state.winning_special_bit_pos as usize;
-//
-//     let mut normal_matches: u8 = 0;
-//     for j in 0..32usize {
-//         normal_matches += (ticket.bitvec[j] & winning_normals[j]).count_ones() as u8;
-//     }
-//
-//     let special_byte = winning_special / 8;
-//     let special_bit  = winning_special % 8;
-//     let bonus_hit    = (ticket.bitvec[special_byte] >> special_bit) & 1 == 1;
-//
-//     let tier = (normal_matches as usize * 2) + if bonus_hit { 1 } else { 0 };
-//
-//     // ----------------------------------------------------------
-//     // 5. GET PAYOUT FOR THIS TIER
-//     //    tier_payouts[tier] = 0 means this tier has no prize
-//     // ----------------------------------------------------------
-//     let payout = ctx.accounts.tally_state.tier_payouts[tier];
-//
-//     // ----------------------------------------------------------
-//     // 6. TRANSFER USDC FROM VAULT TO USER
-//     //    Even if payout = 0 we still close the account below
-//     //    so user gets rent back regardless
-//     // ----------------------------------------------------------
-//     if payout > 0 {
-//         let signer_seeds: &[&[&[u8]]] = &[&[
-//             SEED_GLOBAL,
-//             &[ctx.accounts.global_state_account.bump],
-//         ]];
-//
-//         transfer_checked(
-//             CpiContext::new_with_signer(
-//                 ctx.accounts.token_program.to_account_info(),
-//                 TransferChecked {
-//                     from:      ctx.accounts.protocol_usdc_vault.to_account_info(),
-//                     mint:      ctx.accounts.usdc_mint.to_account_info(),
-//                     to:        ctx.accounts.user_usdc_account.to_account_info(),
-//                     authority: ctx.accounts.global_state_account.to_account_info(),
-//                 },
-//                 signer_seeds,
-//             ),
-//             payout,
-//             ctx.accounts.usdc_mint.decimals,
-//         )?;
-//     }
-//
-//     // ----------------------------------------------------------
-//     // 7. CLOSE TICKET ACCOUNT — rent returned to signer
-//     //    This replaces NFT burning from EVM
-//     //    Once closed — account gone — no double claim possible
-//     //    The `close = signer` constraint in accounts struct handles this
-//     // ----------------------------------------------------------
-//
-//     Ok(())
-// }
+    // 1. FIND UNCLAIMED INSTANCE (Ownership/Validity Check)
+    let ticket_index = user_info.tickets
+        .iter()
+        .enumerate()
+        .position(|(i, &t)| t == packed_ticket_to_claim && !user_info.claimed[i])
+        .ok_or(LordspotError::TicketAlreadyClaimedOrNotFound)?;
+
+    // 2. MARK AS CLAIMED / "BURN" (Do this regardless of win/loss)
+    // This mirrors `jackpotNFT.burnTicket(ticketId)`
+    user_info.claimed[ticket_index] = true;
+
+    // 3. CALCULATE TIER
+    let tier_id = calculate_ticket_tier(packed_ticket_to_claim, winning_ticket, normal_max);
+
+    // 4. PAYOUT LOGIC
+    // We check tier_id and payout_amount. If it's a loss (Tier 0 or Payout 0),
+    // we simply skip the transfer, but the ticket stays "claimed".
+    let payout_amount = ctx.accounts.tier_payouts.tier_payouts[tier_id as usize];
+
+    if payout_amount > 0 {
+        let seeds = &[SEED_GLOBAL, &[ctx.accounts.global_state_account.bump]];
+        let signer_seeds = &[&seeds[..]];
+
+        transfer_checked(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                TransferChecked {
+                    from: ctx.accounts.protocol_usdc_vault.to_account_info(),
+                    mint: ctx.accounts.usdc_mint.to_account_info(),
+                    to: ctx.accounts.user_usdc_account.to_account_info(),
+                    authority: ctx.accounts.global_state_account.to_account_info(),
+                },
+                signer_seeds,
+            ),
+            payout_amount,
+            ctx.accounts.usdc_mint.decimals,
+        )?;
+    }
+
+    emit!(TicketClaimedEvent {
+        epoch_id: _epoch_id,
+        buyer: ctx.accounts.signer.key(),
+        packed_ticket: packed_ticket_to_claim,
+        reward_amount: payout_amount,
+    });
+
+    Ok(())
+}
 
 
 
 
-// #[derive(Accounts)]
-// #[instruction(epoch_id: u64)]
-// pub struct ClaimRewards<'info> {
-//
-//     #[account(mut)]
-//     pub signer: Signer<'info>,
-//
-//     #[account(
-//         seeds = [SEED_GLOBAL],
-//         bump = global_state_account.bump,
-//     )]
-//     pub global_state_account: Account<'info, GlobalState>,
-//
-//     // Drawing state for the epoch being claimed
-//     // Read only — just for reference if needed later
-//     #[account(
-//         seeds = [
-//             SEED_DRAWING_STATE,
-//             epoch_id.to_le_bytes().as_ref(),
-//         ],
-//         bump = drawing_state_account.bump,
-//     )]
-//     pub drawing_state_account: Account<'info, DrawingState>,
-//
-//     // TallyState for this epoch — must be Settled
-//     #[account(
-//         seeds = [
-//             SEED_TALLY,
-//             epoch_id.to_le_bytes().as_ref(),
-//         ],
-//         bump = tally_state.bump,
-//         constraint = tally_state.status == TallyStatus::Settled
-//             @ LordspotError::TallyNotSettled,
-//     )]
-//     pub tally_state: Account<'info, TallyState>,
-//
-//     // The user's ticket — closed after claim, rent returned to signer
-//     #[account(
-//         mut,
-//         seeds = [
-//             SEED_TICKET,
-//             epoch_id.to_le_bytes().as_ref(),
-//             ticket_account.ticket_index.to_le_bytes().as_ref(),
-//         ],
-//         bump = ticket_account.bump,
-//         constraint = ticket_account.owner == signer.key()
-//             @ LordspotError::InvalidOwner,
-//         constraint = ticket_account.draw_id == epoch_id
-//             @ LordspotError::InvalidEpochId,
-//         constraint = !ticket_account.claimed
-//             @ LordspotError::AlreadyClaimed,
-//         close = signer,
-//     )]
-//     pub ticket_account: Account<'info, TicketAccount>,
-//
-//     #[account(
-//         address = MOCK_USDC_DEVNET_ADDRESS @ LordspotError::InvalidMintAddress
-//     )]
-//     pub usdc_mint: InterfaceAccount<'info, Mint>,
-//
-//     // User's USDC account — receives payout
-//     #[account(
-//         mut,
-//         token::authority = signer,
-//         token::mint = usdc_mint,
-//     )]
-//     pub user_usdc_account: InterfaceAccount<'info, TokenAccount>,
-//
-//     // Protocol vault — source of payout
-//     #[account(
-//         mut,
-//         seeds = [SEED_PROTOCOL_USDC_ACCOUNT],
-//         bump = global_state_account.protocol_usdc_vault_bump,
-//         token::mint = usdc_mint,
-//         token::authority = global_state_account,
-//     )]
-//     pub protocol_usdc_vault: InterfaceAccount<'info, TokenAccount>,
-//
-//     pub token_program: Interface<'info, TokenInterface>,
-//     pub system_program: Program<'info, System>,
-// }
+#[derive(Accounts)]
+#[instruction(epoch_id: u64)]
+pub struct ClaimRewards<'info> {
+
+    #[account(mut)]
+    pub signer: Signer<'info>,
+
+    #[account(
+        seeds = [SEED_GLOBAL],
+        bump = global_state_account.bump,
+    )]
+    pub global_state_account: Account<'info, GlobalState>,
+
+    // Drawing state for the epoch being claimed
+    // Read only — just for reference if needed later
+    #[account(
+        seeds = [
+            SEED_DRAWING_STATE,
+            epoch_id.to_le_bytes().as_ref(),
+        ],
+        bump = drawing_state_account.bump,
+        constraint = epoch_id > 0 && global_state_account.current_epoch_id > epoch_id @ LordspotError::IncorrectEpochIdToClaim,
+    )]
+    pub drawing_state_account: Account<'info, DrawingState>,
+
+    #[account(
+        mut,
+        seeds = [SEED_TICKET_TRACKER, epoch_id.to_le_bytes().as_ref()],
+        bump = ticket_tracker.bump,
+    )]
+    pub ticket_tracker: Account<'info, TicketTracker>,
+
+    #[account(
+        mut,
+        seeds = [SEED_USER_TICKETS, signer.key().as_ref(), epoch_id.to_le_bytes().as_ref()],
+        bump = user_tickets.bump,
+    )]
+    pub user_tickets: Account<'info, UserTickets>,
+
+
+    #[account(
+        address = MOCK_USDC_DEVNET_ADDRESS @ LordspotError::InvalidMintAddress
+    )]
+    pub usdc_mint: InterfaceAccount<'info, Mint>,
+
+    // User's USDC account — receives payout
+    #[account(
+        mut,
+        token::authority = signer,
+        token::mint = usdc_mint,
+    )]
+    pub user_usdc_account: InterfaceAccount<'info, TokenAccount>,
+
+    #[account(
+        mut,
+        token::mint = usdc_mint,
+        token::authority = global_state_account
+    )]
+    pub protocol_usdc_vault: InterfaceAccount<'info, TokenAccount>,
+
+    #[account(
+        seeds = [SEED_TIER_PAYOUTS, epoch_id.to_le_bytes().as_ref()],
+        bump = ticket_tracker.bump,
+    )]
+    pub tier_payouts : Account<'info, TierPayouts>,
+
+    pub token_program: Interface<'info, TokenInterface>,
+    pub system_program: Program<'info, System>,
+}

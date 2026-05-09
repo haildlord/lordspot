@@ -168,4 +168,28 @@ pub enum LordspotError {
     #[msg("The global protocol has reached its maximum ticket capacity (1200) for this epoch")]
     GlobalEpochLimitReached,
 
+    #[msg("The Ticket to be claimed belongs to the current Epoch")]
+    IncorrectEpochIdToClaim,
+
+    #[msg("About to be Calimed Ticket is not in the user list")]
+    TicketNotInTheList,
+
+    #[msg("No Prize for this Tier.")]
+    NoPrizeForTier,
+
+    #[msg("Ticket not found in the user list")]
+    TicketAlreadyClaimedOrNotFound,
+
+    #[msg("Ticket not found in the system.")]
+    TicketNotFoundInSystem,
+
+    #[msg("Insufficient Shares.")]
+    InsufficientShares,
+
+    #[msg("Not enough shares to withdraw.")]
+    NothingToWithdraw,
+
+    #[msg("Missing the Optional historical epoch account")]
+    MissingHistoricalEpochAccount
+
 }

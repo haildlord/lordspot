@@ -131,7 +131,7 @@ pub fn calculate_tier_winners_and_payouts(
     bonus_max: u8,
     unique_per_tier: &[u64; 12],
     dup_per_tier: &[u64; 12],
-) -> ([u64; 12], u64) {
+) -> ([u64; 12], [u64; 12], u64) {
 
     let mut tier_winners = [0u64; 12];
     let mut min_payout_alloc = 0u64;
@@ -187,11 +187,11 @@ pub fn calculate_tier_winners_and_payouts(
             continue;
         }
 
-        let premium_amount = remaining
-            .checked_mul(PREMIUM_TIER_WEIGHTS[i])
+        let premium_amount = ((remaining as u128)
+            .checked_mul(PREMIUM_TIER_WEIGHTS[i] as u128)
             .unwrap_or(0)
-            .checked_div(PRECISE_UNIT)
-            .unwrap_or(0)
+            .checked_div(PRECISE_UNIT as u128)
+            .unwrap_or(0) as u64)
             .checked_div(tier_winners[i])
             .unwrap_or(0);
 
@@ -210,7 +210,7 @@ pub fn calculate_tier_winners_and_payouts(
             .unwrap_or(0);
     }
 
-    (tier_payouts, total_user_payout)
+    (tier_payouts, tier_winners, total_user_payout)
 }
 
 pub fn calculate_ticket_tier(

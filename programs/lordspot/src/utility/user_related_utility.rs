@@ -10,13 +10,15 @@ pub fn _validate_and_store_tickets(
     user_tickets: &mut Account<UserTickets>,
     drawing: &mut Account<DrawingState>,
     tickets: &[TicketInput],
-) -> Result<()> {
+) -> Result<Vec<u64>> {
     let edge = global_state.edge_per_ticket;
     let net_per_ticket = global_state.ticket_price
         .checked_sub(edge)
         .ok_or(LordspotError::AirthMaticUnderflow)?;
 
     let mut extra_to_prize = 0u64;
+
+    let mut packed_tickets = Vec::with_capacity(tickets.len());
 
     for ticket_input in tickets {
         require!(
@@ -55,7 +57,7 @@ pub fn _validate_and_store_tickets(
             &ticket_input.normal_marbles,
             ticket_input.special_marble,
             global_state.normal_marble_max,
-        );
+        )?;
         
         let is_dup = ticket_tracker.unique_tickets.contains(&packed);
 
@@ -74,36 +76,36 @@ pub fn _validate_and_store_tickets(
         // Keep user tracking the same
         user_tickets.tickets.push(packed);
         user_tickets.claimed.push(false);
+
+        packed_tickets.push(packed);
     }
 
     drawing.prize_pool = drawing.prize_pool
         .checked_add(extra_to_prize)
         .ok_or(LordspotError::AirthMaticOverflow)?;
 
-    Ok(())
+    Ok(packed_tickets)
 }
 
-// Packs a ticket (5 normal balls + 1 bonus ball) into a single u64
-// This is deterministic and unique for each combination (fits easily in 64 bits)
-// ! : soft cap limit of 65 vs `u64` bit flip, will it overflow -- this is a 100% bug
 pub fn pack_ticket(
-    normal_marbles: &[u8],   // exactly 5 numbers
+    normal_marbles: &[u8],
     special_marble: u8,
-    normal_max: u8,          // usually 30
-) -> u64 {
+    normal_max: u8,
+) -> Result<u64> { // 🚨 Return a Result instead of raw u64
 
     let mut packed: u64 = 0;
 
-    // 1. Pack normal balls as bits (low 32 bits are enough for max=30)
     for &ball in normal_marbles {
         packed |= 1u64 << (ball as u64);
     }
 
-    // 2. Pack bonus ball in higher bits (after the normal balls)
-    // normal_max is usually 30, bonus up to 80 → total bits used ~ 30 + 7 = 37 bits
     let bonus_pos = normal_max as u64 + special_marble as u64;
+
+    // 🚨 CRITICAL SAFETY CHECK
+    require!(bonus_pos < 64, LordspotError::AirthMaticOverflow); // Prevent bit-shift panics
+
     packed |= 1u64 << bonus_pos;
 
-    packed
+    Ok(packed)
 }
 

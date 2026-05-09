@@ -11,7 +11,7 @@ import {
     getDrawingStatePda,
     getTicketTrackerPda,
     getLpDrawingStatePda,
-    getPerEpochStatePda
+    getPerEpochStatePda, getTierPayoutsPda
 } from "./utils/seeds_and_ata";
 
 // --- Switchboard Retry Helpers ---
@@ -55,57 +55,40 @@ describe("Phase 3: Run Lordspot (Gas Relayer Architecture)", () => {
     let randomness: sb.Randomness;
     let currentEpochId: number;
 
-    before(async () => {
-        const [globalStatePda] = getGlobalStatePda();
-        const globalState = await program.account.globalState.fetch(globalStatePda);
-        currentEpochId = globalState.currentEpochId.toNumber();
+// # pda's
+    let globalStatePda: anchor.web3.PublicKey;
+    let drawingStatePda: anchor.web3.PublicKey;
+    let nextDrawingStatePda: anchor.web3.PublicKey;
+    let nextTicketTrackerPda: anchor.web3.PublicKey;
+    let prevTierPayoutsPda: anchor.web3.PublicKey;
 
-        // Local fork bypass for Switchboard
-        sbProgram = await anchor.Program.at(DEVNET_SB_PROGRAM_ID, provider);
+    let globalState: any;
+    let drawingState: any;
+
+    before(async () => {
+        // 1. Assign to the globally scoped variables (no 'const')
+        [globalStatePda] = getGlobalStatePda();
+        [drawingStatePda] = getDrawingStatePda(1);
+
+        [nextDrawingStatePda] = getDrawingStatePda(2);
+        [nextTicketTrackerPda] = getTicketTrackerPda(2);
+        [prevTierPayoutsPda] = getTierPayoutsPda(1);
+
+        globalState = await program.account.globalState.fetch(globalStatePda);
+        drawingState = await program.account.drawingState.fetch(drawingStatePda);
+
+        currentEpochId = globalState.currentEpochId.toNumber();
         queue = { pubkey: DEVNET_QUEUE_PUBKEY };
         randomness = new sb.Randomness(sbProgram as any, globalState.switchboardRandomAccount);
     });
 
-    // # this below test 1 will only pass if the runJackpot is called before the 1 day, for correct logic it will always fail -- hence commenting it
-    // it("1. Fails to commit because drawing duration hasn't passed", async () => {
-    //     try {
-    //         const commitIx = await retryCommit(randomness, queue);
-    //
-    //         const commitToRandomNumTx = await program.methods.commit().accounts({
-    //             signer: rngAuthorityKp.publicKey
-    //         }).instruction();
-    //
-    //         const commitTx = await sb.asV0Tx({
-    //             connection: provider.connection,
-    //             ixs: [commitIx, commitToRandomNumTx],
-    //             payer: rngAuthorityKp.publicKey,
-    //             signers: [rngAuthorityKp],
-    //             computeUnitPrice: 75_000,
-    //             computeUnitLimitMultiple: 1.6,
-    //         });
-    //
-    //         // This forces Solana to simulate the tx, realize it violates your time-lock, and throw an error immediately!
-    //         await provider.connection.sendRawTransaction(commitTx.serialize(), { skipPreflight: false });
-    //
-    //         // If the code reaches this line, the transaction SUCCEEDED (which means your time-lock is broken).
-    //         assert.fail("SECURITY BREACH: Allowed execution before time lock expired!");
-    //
-    //     } catch (err) {
-    //         const msg = err.message || err.toString();
-    //
-    //         if (msg.includes("SECURITY BREACH")) {
-    //             throw err;
-    //         }
-    //
-    //         // If it was a Solana error, check to make sure it was the EXACT right error.
-    //         expect(msg).to.include("CameTooEarlyToRunLordsPot");
-    //         console.log("Time-lock holds. Execution successfully rejected.");
-    //     }
-    // });
 
-    it("2. Successfully commits and reveals the random number", async () => {
+    it("2. Successfully commits, reveals the random number, and runs LordsPot", async () => {
+
         // --- PART 1: COMMIT ---
         const commitIx = await retryCommit(randomness, queue);
+        const revealIx = await retryReveal(randomness);
+
         const commitToRandomNumTx = await program.methods.commit().accounts({
             signer: rngAuthorityKp.publicKey
         }).instruction();
@@ -117,27 +100,25 @@ describe("Phase 3: Run Lordspot (Gas Relayer Architecture)", () => {
             signers: [rngAuthorityKp],
         });
 
-        await provider.connection.sendRawTransaction(commitTx.serialize(), { skipPreflight: false });
-        console.log("      🔒 Epoch successfully locked!");
+        const sig1 = await provider.connection.sendRawTransaction(commitTx.serialize(), { skipPreflight: false });
+        const latestBbh1 = await provider.connection.getLatestBlockhash();
+        await provider.connection.confirmTransaction({
+            signature: sig1,
+            ...latestBbh1
+        }, "confirmed");
 
-        // --- PART 2: THE WAIT ---
-        console.log("      🎲 Waiting 5s for Oracle to generate randomness...");
-        await new Promise((resolve) => setTimeout(resolve, 5000));
+        console.log("Epoch officially locked on-chain!");
 
-        // --- PART 3: REVEAL ---
-        const [nextDrawingStatePda] = getDrawingStatePda(currentEpochId + 1);
-        const [nextTicketTrackerPda] = getTicketTrackerPda(currentEpochId + 1);
+        // 🔄 RE-FETCH State before Assertions
+        globalState = await program.account.globalState.fetch(globalStatePda);
+        drawingState = await program.account.drawingState.fetch(drawingStatePda);
 
-        // 👇 YOUR NGROK URL
-        const NGROK_URL = "https://cornflake-blade-dwelling.ngrok-free.dev";
-        console.log(`      📡 Using Tunnel: ${NGROK_URL}`);
+        assert.notEqual(globalState.commitSlot.toNumber(), 0, "commit cannot be 0");
+        assert.isTrue(drawingState.lordspotLock, "lock should be true");
+        console.log("Commit Slot : ", globalState.commitSlot.toString());
 
-        // 👇 We use 'as any' to bypass the mismatched TypeScript definition
-        const revealIx = await (randomness as any).revealIx({
-            rpc: NGROK_URL
-        });
-
-        const saveToRandomNumTx = await program.methods.save(true)
+        // --- PART 2: REVEAL & SAVE ---
+        const saveToRandomNumTx = await program.methods.save(false)
             .accounts({
                 signer: rngAuthorityKp.publicKey,
                 nextDrawingStateAccount: nextDrawingStatePda,
@@ -152,16 +133,55 @@ describe("Phase 3: Run Lordspot (Gas Relayer Architecture)", () => {
             signers: [rngAuthorityKp],
         });
 
-        const sig = await provider.connection.sendRawTransaction(revealTx.serialize(), { skipPreflight: false });
-        await provider.connection.confirmTransaction(sig, "confirmed");
+        const sig2 = await provider.connection.sendRawTransaction(revealTx.serialize(), { skipPreflight: false });
+        const latestBbh2 = await provider.connection.getLatestBlockhash();
+        await provider.connection.confirmTransaction({
+            signature: sig2,
+            ...latestBbh2
+        }, "confirmed");
 
-        // --- PART 4: VERIFY ---
-        const [drawingStatePda] = getDrawingStatePda(currentEpochId);
-        const drawingState = await program.account.drawingState.fetch(drawingStatePda);
+        console.log("Winning Ticket Saved in Smart Contract");
+
+        // --- PART 3: VERIFY SAVE ---
+        // 🔄 RE-FETCH State again!
+        drawingState = await program.account.drawingState.fetch(drawingStatePda);
 
         assert.isTrue(drawingState.lordspotLock, "Drawing state should be locked!");
-        assert.equal(drawingState.winningTicket.toString(), "4398046511166", "Winning ticket was not forced!");
-        console.log(`      🎉 RNG Saved! Winning Ticket: ${drawingState.winningTicket.toString()}`);
+        assert.notEqual(drawingState.winningTicket.toNumber(), 0, "Winning ticket should not be 0");
+        console.log(`RNG Saved! Winning Ticket: ${drawingState.winningTicket.toString()}`);
+
+        // --- PART 4: RUN LORDSPOT (Calculate Tiers & Payouts) ---
+        const runTx = await program.methods.runLordspot()
+            .accounts({
+                signer: rngAuthorityKp.publicKey,
+                nextLpDrawingState : getLpDrawingStatePda(currentEpochId + 1)[0],
+                // Safe fallback for Epoch 1
+                prevPerEpochState: currentEpochId > 1 ? getPerEpochStatePda(currentEpochId - 1)[0] : null,
+            })
+            .signers([rngAuthorityKp])
+            .rpc();
+
+        console.log(`LordsPot successfully run! Tx Sig: ${runTx}`);
+
+
+        // --- PART 5: FINAL VERIFICATION ---
+        // Pass the PDA, not the object!
+        const prevDrawingState = await program.account.drawingState.fetch(drawingStatePda);
+        assert.isFalse(prevDrawingState.lordspotLock, "Drawing state should be unlocked after run_lordspot!");
+
+        const prevTierPayoutsState = await program.account.tierPayouts.fetch(prevTierPayoutsPda);
+        for(let i = 0; i < prevTierPayoutsState.tierPayouts.length; i++) {
+            console.log(`Tier ${i}:`, prevTierPayoutsState.tierPayouts[i].toString());
+        }
+
+        const nextDrawingState = await program.account.drawingState.fetch(nextDrawingStatePda);
+        console.log("Next Prize Pool:", nextDrawingState.prizePool.toString());
+        console.log("Next LP Earnings:", nextDrawingState.lpEarnings.toString());
+        console.log("Next Drawing Time:", nextDrawingState.drawingTime.toString());
+        console.log("Next Lordspot Lock:", nextDrawingState.lordspotLock);
+        console.log("Next Special Marble Max:", nextDrawingState.specialMarbleMax);
+
+        console.log(`Tier Payouts calculated and state unlocked successfully!`);
     });
 
     // it("4. Saves the random number (Reveals RNG)", async () => {

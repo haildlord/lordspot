@@ -1,0 +1,3106 @@
+{
+  "address": "2cm7EMzH5ne9N8A8fDn6e2ZHtpBxwaFrYNGkpQcn8DAi",
+  "metadata": {
+    "name": "lords_pot",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "buy_tickets",
+      "discriminator": [
+        48,
+        16,
+        122,
+        137,
+        24,
+        214,
+        198,
+        58
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "global_state_account",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "drawing_state_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  114,
+                  97,
+                  119,
+                  105,
+                  110,
+                  103,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "global_state_account.current_epoch_id",
+                "account": "GlobalState"
+              }
+            ]
+          }
+        },
+        {
+          "name": "ticket_tracker",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  105,
+                  99,
+                  107,
+                  101,
+                  116,
+                  95,
+                  116,
+                  114,
+                  97,
+                  99,
+                  107,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "global_state_account.current_epoch_id",
+                "account": "GlobalState"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_tickets",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  116,
+                  105,
+                  99,
+                  107,
+                  101,
+                  116,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "signer"
+              },
+              {
+                "kind": "account",
+                "path": "global_state_account.current_epoch_id",
+                "account": "GlobalState"
+              }
+            ]
+          }
+        },
+        {
+          "name": "usdc_mint",
+          "address": "6EkfBDuK9TkW3dxFaWqX1rQit9gmYgo4eUMmZVs6H7wH"
+        },
+        {
+          "name": "buyers_usdc_account",
+          "writable": true
+        },
+        {
+          "name": "protocol_usdc_vault",
+          "writable": true
+        },
+        {
+          "name": "token_program"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount_to_buy",
+          "type": {
+            "vec": {
+              "defined": {
+                "name": "TicketInput"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "claim_rewards",
+      "discriminator": [
+        4,
+        144,
+        132,
+        71,
+        116,
+        23,
+        151,
+        80
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "global_state_account",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "drawing_state_account",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  114,
+                  97,
+                  119,
+                  105,
+                  110,
+                  103,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "epoch_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "ticket_tracker",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  105,
+                  99,
+                  107,
+                  101,
+                  116,
+                  95,
+                  116,
+                  114,
+                  97,
+                  99,
+                  107,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "epoch_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_tickets",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  116,
+                  105,
+                  99,
+                  107,
+                  101,
+                  116,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "signer"
+              },
+              {
+                "kind": "arg",
+                "path": "epoch_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "usdc_mint",
+          "address": "6EkfBDuK9TkW3dxFaWqX1rQit9gmYgo4eUMmZVs6H7wH"
+        },
+        {
+          "name": "user_usdc_account",
+          "writable": true
+        },
+        {
+          "name": "protocol_usdc_vault",
+          "writable": true
+        },
+        {
+          "name": "tier_payouts",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  105,
+                  101,
+                  114,
+                  95,
+                  112,
+                  97,
+                  121,
+                  111,
+                  117,
+                  116,
+                  115,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "epoch_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "_epoch_id",
+          "type": "u64"
+        },
+        {
+          "name": "packed_ticket_to_claim",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "commit",
+      "discriminator": [
+        223,
+        140,
+        142,
+        165,
+        229,
+        208,
+        156,
+        74
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "global_state_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "switchboard_random_account",
+          "docs": [
+            "CHECK : above has_one makes sure its the right one"
+          ],
+          "relations": [
+            "global_state_account"
+          ]
+        },
+        {
+          "name": "drawing_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  114,
+                  97,
+                  119,
+                  105,
+                  110,
+                  103,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "global_state_account.current_epoch_id",
+                "account": "GlobalState"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "init_lordspot",
+      "discriminator": [
+        110,
+        120,
+        152,
+        40,
+        154,
+        7,
+        62,
+        136
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true,
+          "address": "H8Q7CUvPigtSxfd13TKRuFrwdJtc6pJu9BMNhbXF9yAY"
+        },
+        {
+          "name": "global_state_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "per_epoch_state_account",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  101,
+                  114,
+                  95,
+                  101,
+                  112,
+                  111,
+                  99,
+                  104,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "prev_per_epoch_state_account",
+          "optional": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  101,
+                  114,
+                  95,
+                  101,
+                  112,
+                  111,
+                  99,
+                  104,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "global_state_account.current_epoch_id.saturating_sub(1)",
+                "account": "GlobalState"
+              }
+            ]
+          }
+        },
+        {
+          "name": "drawing_id_to_lp_drawing_state",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  114,
+                  97,
+                  119,
+                  105,
+                  110,
+                  103,
+                  95,
+                  105,
+                  100,
+                  95,
+                  116,
+                  111,
+                  95,
+                  108,
+                  112,
+                  95,
+                  100,
+                  114,
+                  97,
+                  119,
+                  105,
+                  110,
+                  103,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "next_drawing_id_to_lp_drawing_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  114,
+                  97,
+                  119,
+                  105,
+                  110,
+                  103,
+                  95,
+                  105,
+                  100,
+                  95,
+                  116,
+                  111,
+                  95,
+                  108,
+                  112,
+                  95,
+                  100,
+                  114,
+                  97,
+                  119,
+                  105,
+                  110,
+                  103,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  1,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "next_drawing_state_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  114,
+                  97,
+                  119,
+                  105,
+                  110,
+                  103,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  1,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "ticket_tracker",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  105,
+                  99,
+                  107,
+                  101,
+                  116,
+                  95,
+                  116,
+                  114,
+                  97,
+                  99,
+                  107,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  1,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "now_time",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "initialize",
+      "discriminator": [
+        175,
+        175,
+        109,
+        31,
+        13,
+        152,
+        155,
+        237
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true,
+          "address": "H8Q7CUvPigtSxfd13TKRuFrwdJtc6pJu9BMNhbXF9yAY"
+        },
+        {
+          "name": "global_state_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "per_epoch_state_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  101,
+                  114,
+                  95,
+                  101,
+                  112,
+                  111,
+                  99,
+                  104,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "drawing_id_to_lp_drawing_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  114,
+                  97,
+                  119,
+                  105,
+                  110,
+                  103,
+                  95,
+                  105,
+                  100,
+                  95,
+                  116,
+                  111,
+                  95,
+                  108,
+                  112,
+                  95,
+                  100,
+                  114,
+                  97,
+                  119,
+                  105,
+                  110,
+                  103,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "usdc_mint",
+          "address": "6EkfBDuK9TkW3dxFaWqX1rQit9gmYgo4eUMmZVs6H7wH"
+        },
+        {
+          "name": "drawing_state_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  114,
+                  97,
+                  119,
+                  105,
+                  110,
+                  103,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "const",
+                "value": [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "protocol_usdc_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "global_state_account"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "usdc_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "token_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "rngkp",
+          "type": "pubkey"
+        },
+        {
+          "name": "normal_marble_max",
+          "type": "u8"
+        },
+        {
+          "name": "pool_total_cap",
+          "type": "u64"
+        },
+        {
+          "name": "ticket_price",
+          "type": "u64"
+        },
+        {
+          "name": "lp_target_percent",
+          "type": "u64"
+        },
+        {
+          "name": "special_ball_min",
+          "type": "u8"
+        },
+        {
+          "name": "special_ball_soft_cap",
+          "type": "u8"
+        },
+        {
+          "name": "special_ball_hard_cap",
+          "type": "u8"
+        },
+        {
+          "name": "protocol_fee",
+          "type": "u64"
+        },
+        {
+          "name": "protocol_fee_threshold",
+          "type": "u64"
+        },
+        {
+          "name": "drawing_duration",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "lp_deposit",
+      "discriminator": [
+        27,
+        77,
+        210,
+        69,
+        12,
+        43,
+        148,
+        16
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "usdc_mint",
+          "address": "6EkfBDuK9TkW3dxFaWqX1rQit9gmYgo4eUMmZVs6H7wH"
+        },
+        {
+          "name": "global_state_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "drawing_state_account",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  114,
+                  97,
+                  119,
+                  105,
+                  110,
+                  103,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "global_state_account.current_epoch_id",
+                "account": "GlobalState"
+              }
+            ]
+          }
+        },
+        {
+          "name": "drawing_id_to_lp_drawing_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  114,
+                  97,
+                  119,
+                  105,
+                  110,
+                  103,
+                  95,
+                  105,
+                  100,
+                  95,
+                  116,
+                  111,
+                  95,
+                  108,
+                  112,
+                  95,
+                  100,
+                  114,
+                  97,
+                  119,
+                  105,
+                  110,
+                  103,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "global_state_account.current_epoch_id",
+                "account": "GlobalState"
+              }
+            ]
+          }
+        },
+        {
+          "name": "lp_mint_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "signer"
+              },
+              {
+                "kind": "account",
+                "path": "token_program"
+              },
+              {
+                "kind": "account",
+                "path": "usdc_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "protocol_usdc_vault",
+          "writable": true
+        },
+        {
+          "name": "lp_info_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  112,
+                  95,
+                  105,
+                  110,
+                  102,
+                  111,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "signer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "deposit_epoch_state",
+          "optional": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  101,
+                  114,
+                  95,
+                  101,
+                  112,
+                  111,
+                  99,
+                  104,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lp_info_account.last_deposit_info.epoch_id",
+                "account": "LPInfo"
+              }
+            ]
+          }
+        },
+        {
+          "name": "prev_per_epoch_state",
+          "optional": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  101,
+                  114,
+                  95,
+                  101,
+                  112,
+                  111,
+                  99,
+                  104,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "global_state_account.current_epoch_id.saturating_sub(1)",
+                "account": "GlobalState"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount_to_deposit",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "run_lordspot",
+      "discriminator": [
+        234,
+        2,
+        126,
+        55,
+        196,
+        57,
+        99,
+        156
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "global_state_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "drawing_state_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  114,
+                  97,
+                  119,
+                  105,
+                  110,
+                  103,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "global_state_account.current_epoch_id",
+                "account": "GlobalState"
+              }
+            ]
+          }
+        },
+        {
+          "name": "ticket_tracker",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  105,
+                  99,
+                  107,
+                  101,
+                  116,
+                  95,
+                  116,
+                  114,
+                  97,
+                  99,
+                  107,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "global_state_account.current_epoch_id",
+                "account": "GlobalState"
+              }
+            ]
+          }
+        },
+        {
+          "name": "tier_payouts_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  105,
+                  101,
+                  114,
+                  95,
+                  112,
+                  97,
+                  121,
+                  111,
+                  117,
+                  116,
+                  115,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "global_state_account.current_epoch_id",
+                "account": "GlobalState"
+              }
+            ]
+          }
+        },
+        {
+          "name": "lp_drawing_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  114,
+                  97,
+                  119,
+                  105,
+                  110,
+                  103,
+                  95,
+                  105,
+                  100,
+                  95,
+                  116,
+                  111,
+                  95,
+                  108,
+                  112,
+                  95,
+                  100,
+                  114,
+                  97,
+                  119,
+                  105,
+                  110,
+                  103,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "global_state_account.current_epoch_id",
+                "account": "GlobalState"
+              }
+            ]
+          }
+        },
+        {
+          "name": "next_lp_drawing_state",
+          "writable": true
+        },
+        {
+          "name": "current_per_epoch_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  101,
+                  114,
+                  95,
+                  101,
+                  112,
+                  111,
+                  99,
+                  104,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "global_state_account.current_epoch_id",
+                "account": "GlobalState"
+              }
+            ]
+          }
+        },
+        {
+          "name": "prev_per_epoch_state",
+          "optional": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "save",
+      "discriminator": [
+        102,
+        136,
+        119,
+        200,
+        222,
+        182,
+        126,
+        225
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "global_state_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "switchboard_random_account",
+          "docs": [
+            "CHECK : above has_one makes sure its the right one"
+          ],
+          "relations": [
+            "global_state_account"
+          ]
+        },
+        {
+          "name": "drawing_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  114,
+                  97,
+                  119,
+                  105,
+                  110,
+                  103,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "global_state_account.current_epoch_id",
+                "account": "GlobalState"
+              }
+            ]
+          }
+        },
+        {
+          "name": "next_drawing_state_account",
+          "writable": true
+        },
+        {
+          "name": "next_ticket_tracker",
+          "writable": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "use_known_winning_ticket",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "universal_close",
+      "discriminator": [
+        100,
+        123,
+        13,
+        95,
+        71,
+        193,
+        164,
+        24
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "target_pda",
+          "docs": [
+            "We only enforce that this program actually owns the account being destroyed."
+          ],
+          "writable": true
+        },
+        {
+          "name": "receiver",
+          "docs": [
+            "The account that will receive the reclaimed rent lamports"
+          ],
+          "writable": true
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "DrawingState",
+      "discriminator": [
+        35,
+        17,
+        24,
+        204,
+        9,
+        170,
+        6,
+        121
+      ]
+    },
+    {
+      "name": "EpochIdToLPDrawingState",
+      "discriminator": [
+        59,
+        247,
+        87,
+        174,
+        229,
+        202,
+        137,
+        174
+      ]
+    },
+    {
+      "name": "GlobalState",
+      "discriminator": [
+        163,
+        46,
+        74,
+        168,
+        216,
+        123,
+        133,
+        98
+      ]
+    },
+    {
+      "name": "LPInfo",
+      "discriminator": [
+        51,
+        21,
+        183,
+        146,
+        169,
+        158,
+        197,
+        29
+      ]
+    },
+    {
+      "name": "PerEpochState",
+      "discriminator": [
+        59,
+        219,
+        20,
+        226,
+        35,
+        157,
+        126,
+        248
+      ]
+    },
+    {
+      "name": "TicketTracker",
+      "discriminator": [
+        242,
+        140,
+        30,
+        20,
+        234,
+        30,
+        153,
+        243
+      ]
+    },
+    {
+      "name": "TierPayouts",
+      "discriminator": [
+        223,
+        62,
+        194,
+        2,
+        129,
+        13,
+        204,
+        99
+      ]
+    },
+    {
+      "name": "UserTickets",
+      "discriminator": [
+        92,
+        168,
+        76,
+        232,
+        125,
+        8,
+        105,
+        196
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "EpochSettledEvent",
+      "discriminator": [
+        79,
+        25,
+        194,
+        141,
+        132,
+        142,
+        84,
+        101
+      ]
+    },
+    {
+      "name": "EpochStartedEvent",
+      "discriminator": [
+        107,
+        223,
+        23,
+        213,
+        123,
+        177,
+        241,
+        247
+      ]
+    },
+    {
+      "name": "GlobalConfigInitialized",
+      "discriminator": [
+        5,
+        221,
+        172,
+        158,
+        77,
+        87,
+        157,
+        113
+      ]
+    },
+    {
+      "name": "LpDepositedEvent",
+      "discriminator": [
+        154,
+        184,
+        157,
+        28,
+        12,
+        68,
+        193,
+        215
+      ]
+    },
+    {
+      "name": "LpWithdrawFinalizedEvent",
+      "discriminator": [
+        162,
+        19,
+        116,
+        199,
+        163,
+        47,
+        26,
+        12
+      ]
+    },
+    {
+      "name": "LpWithdrawInitiatedEvent",
+      "discriminator": [
+        21,
+        233,
+        134,
+        9,
+        210,
+        120,
+        7,
+        69
+      ]
+    },
+    {
+      "name": "RandomnessCommittedEvent",
+      "discriminator": [
+        0,
+        140,
+        83,
+        196,
+        174,
+        132,
+        14,
+        149
+      ]
+    },
+    {
+      "name": "TicketClaimedEvent",
+      "discriminator": [
+        236,
+        113,
+        109,
+        20,
+        138,
+        100,
+        139,
+        206
+      ]
+    },
+    {
+      "name": "TicketsBoughtEvent",
+      "discriminator": [
+        94,
+        165,
+        240,
+        185,
+        176,
+        140,
+        165,
+        221
+      ]
+    },
+    {
+      "name": "WinningTicketDrawnEvent",
+      "discriminator": [
+        228,
+        14,
+        134,
+        106,
+        44,
+        143,
+        134,
+        239
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "Unauthorized",
+      "msg": "Unauthorized access. Admin only."
+    },
+    {
+      "code": 6001,
+      "name": "RandomnessExpired",
+      "msg": "Randomness slot mismatch. The request has expired."
+    },
+    {
+      "code": 6002,
+      "name": "RandomnessAlreadyRevealed",
+      "msg": "Randomness has already been revealed."
+    },
+    {
+      "code": 6003,
+      "name": "RandomnessMismatch",
+      "msg": "Randomness seed mismatch."
+    },
+    {
+      "code": 6004,
+      "name": "RandomnessNotResolved",
+      "msg": "Randomness is not yet resolved by Switchboard."
+    },
+    {
+      "code": 6005,
+      "name": "InvalidEpochId",
+      "msg": "Invalid EPOCH ID."
+    },
+    {
+      "code": 6006,
+      "name": "InvalidLPPoolCap",
+      "msg": "Invalid LP Pool Cap."
+    },
+    {
+      "code": 6007,
+      "name": "AirthMaticOverflow",
+      "msg": "Airthematic Overflow Issue."
+    },
+    {
+      "code": 6008,
+      "name": "AirthMaticUnderflow",
+      "msg": "Airthematic Underflow Issue."
+    },
+    {
+      "code": 6009,
+      "name": "InvalidMintAddress",
+      "msg": "Invalid Mint Address."
+    },
+    {
+      "code": 6010,
+      "name": "SlotMismatch",
+      "msg": "Slot mismatch"
+    },
+    {
+      "code": 6011,
+      "name": "AlreadyRevealedRandomValue",
+      "msg": "Already Revealed Randomness"
+    },
+    {
+      "code": 6012,
+      "name": "SlotMisMatch",
+      "msg": "Slot Mismatach"
+    },
+    {
+      "code": 6013,
+      "name": "SeedMisMatch",
+      "msg": "Seed Mismatach"
+    },
+    {
+      "code": 6014,
+      "name": "UnresolvedRandomness",
+      "msg": "Unresolved Randomness"
+    },
+    {
+      "code": 6015,
+      "name": "InvalidOwner",
+      "msg": "Invalid Owner"
+    },
+    {
+      "code": 6016,
+      "name": "InvalidMint",
+      "msg": "Invalid Mint"
+    },
+    {
+      "code": 6017,
+      "name": "AmountCannotBeZero",
+      "msg": "Amount cannot be zero"
+    },
+    {
+      "code": 6018,
+      "name": "ExceedsPoolCap",
+      "msg": "Lp Pool Cap exceeded"
+    },
+    {
+      "code": 6019,
+      "name": "LPDepositsNotInitialized",
+      "msg": "LP deposits not initialized."
+    },
+    {
+      "code": 6020,
+      "name": "LordspotAlreadyInitialized",
+      "msg": "LordsPot already initialized."
+    },
+    {
+      "code": 6021,
+      "name": "NoLPDeposits",
+      "msg": "No LP Deposits"
+    },
+    {
+      "code": 6022,
+      "name": "MissingPreviousEpochAccount",
+      "msg": "Missing Previous Epoch Account"
+    },
+    {
+      "code": 6023,
+      "name": "InvalidMarbleConfiguration",
+      "msg": "Invalid Marble Config"
+    },
+    {
+      "code": 6024,
+      "name": "TicketPurchaseNotAllowed",
+      "msg": "Ticket Purchase not allowed."
+    },
+    {
+      "code": 6025,
+      "name": "LordspotIsLocked",
+      "msg": "Lordspot is locked."
+    },
+    {
+      "code": 6026,
+      "name": "NotEnoughLiquidity",
+      "msg": "Not enough liquidity."
+    },
+    {
+      "code": 6027,
+      "name": "InvalidProtocolUSDCVault",
+      "msg": "Invalid ProtocolUSDCVault"
+    },
+    {
+      "code": 6028,
+      "name": "InvalidNormalsCount",
+      "msg": "Invalid Normals Count."
+    },
+    {
+      "code": 6029,
+      "name": "InvalidSpecialMarble",
+      "msg": "Invalid Special Ball."
+    },
+    {
+      "code": 6030,
+      "name": "InvalidMarble",
+      "msg": "Invalid Marble."
+    },
+    {
+      "code": 6031,
+      "name": "DuplicateMarble",
+      "msg": "Duplicate Marble"
+    },
+    {
+      "code": 6032,
+      "name": "TooManyTickets",
+      "msg": "Too many tickets in one transaction. Max is 5."
+    },
+    {
+      "code": 6033,
+      "name": "NoTicketsProvided",
+      "msg": "No tickets provided."
+    },
+    {
+      "code": 6034,
+      "name": "TicketAccountMismatch",
+      "msg": "Ticket account mismatch. Wrong PDA passed."
+    },
+    {
+      "code": 6035,
+      "name": "DrawingClosed",
+      "msg": "Ticket purchase window is closed."
+    },
+    {
+      "code": 6036,
+      "name": "InvalidMarbleConfig",
+      "msg": "Invalid Marble Config"
+    },
+    {
+      "code": 6037,
+      "name": "DrawingNotReady",
+      "msg": "Drawing time has not passed yet."
+    },
+    {
+      "code": 6038,
+      "name": "TallyAlreadySettled",
+      "msg": "Tally is already settled."
+    },
+    {
+      "code": 6039,
+      "name": "TallyNotSettled",
+      "msg": "Tally is not yet settled."
+    },
+    {
+      "code": 6040,
+      "name": "InvalidTicketOrder",
+      "msg": "Ticket order mismatch. Pass tickets in sequential order."
+    },
+    {
+      "code": 6041,
+      "name": "DrawingNotCompleted",
+      "msg": "Drawing is not yet completed."
+    },
+    {
+      "code": 6042,
+      "name": "AlreadyClaimed",
+      "msg": "Ticket has already been claimed."
+    },
+    {
+      "code": 6043,
+      "name": "InvalidLPSoftCap",
+      "msg": "Invalid LP soft cap calculation"
+    },
+    {
+      "code": 6044,
+      "name": "LordspotLocked",
+      "msg": "current epoch's drawing state's is locked"
+    },
+    {
+      "code": 6045,
+      "name": "InvalidPreviousEpochId",
+      "msg": "Invalid previous epoch ID"
+    },
+    {
+      "code": 6046,
+      "name": "LordspotNotLocked",
+      "msg": "LordsPot is not Locket yet"
+    },
+    {
+      "code": 6047,
+      "name": "LordspotAlreadyLocked",
+      "msg": "LordsPot is already Locket"
+    },
+    {
+      "code": 6048,
+      "name": "CameTooEarlyToRunLordsPot",
+      "msg": "Need to wait more, its not time yet to run LordsPot"
+    },
+    {
+      "code": 6049,
+      "name": "RandomnessParseFailed",
+      "msg": "Parsing of Randomness Account failed."
+    },
+    {
+      "code": 6050,
+      "name": "TooManyDraws",
+      "msg": "To many draws."
+    },
+    {
+      "code": 6051,
+      "name": "InternalMathError",
+      "msg": "Internal Math Error"
+    },
+    {
+      "code": 6052,
+      "name": "UnsortedMarbles",
+      "msg": "While buying marbles are not sorted."
+    },
+    {
+      "code": 6053,
+      "name": "UserEpochLimitReached",
+      "msg": "User has reached the maximum ticket limit (50) for this epoch"
+    },
+    {
+      "code": 6054,
+      "name": "GlobalEpochLimitReached",
+      "msg": "The global protocol has reached its maximum ticket capacity (1200) for this epoch"
+    },
+    {
+      "code": 6055,
+      "name": "IncorrectEpochIdToClaim",
+      "msg": "The Ticket to be claimed belongs to the current Epoch"
+    },
+    {
+      "code": 6056,
+      "name": "TicketNotInTheList",
+      "msg": "About to be Calimed Ticket is not in the user list"
+    },
+    {
+      "code": 6057,
+      "name": "NoPrizeForTier",
+      "msg": "No Prize for this Tier."
+    },
+    {
+      "code": 6058,
+      "name": "TicketAlreadyClaimedOrNotFound",
+      "msg": "Ticket not found in the user list"
+    },
+    {
+      "code": 6059,
+      "name": "TicketNotFoundInSystem",
+      "msg": "Ticket not found in the system."
+    },
+    {
+      "code": 6060,
+      "name": "InsufficientShares",
+      "msg": "Insufficient Shares."
+    },
+    {
+      "code": 6061,
+      "name": "NothingToWithdraw",
+      "msg": "Not enough shares to withdraw."
+    },
+    {
+      "code": 6062,
+      "name": "MissingHistoricalEpochAccount",
+      "msg": "Missing the Optional historical epoch account"
+    }
+  ],
+  "types": [
+    {
+      "name": "DepositInfo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "epoch_id",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DrawingState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "prize_pool",
+            "type": "u64"
+          },
+          {
+            "name": "lp_earnings",
+            "type": "u64"
+          },
+          {
+            "name": "drawing_time",
+            "type": "u64"
+          },
+          {
+            "name": "winning_ticket",
+            "type": "u64"
+          },
+          {
+            "name": "total_tickets",
+            "type": "u64"
+          },
+          {
+            "name": "special_marble_max",
+            "type": "u8"
+          },
+          {
+            "name": "lordspot_lock",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "EpochIdToLPDrawingState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lp_pool_total",
+            "type": "u64"
+          },
+          {
+            "name": "pending_deposits",
+            "type": "u64"
+          },
+          {
+            "name": "pending_withdrawals",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "EpochSettledEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "epoch_id",
+            "type": "u64"
+          },
+          {
+            "name": "prize_pool",
+            "type": "u64"
+          },
+          {
+            "name": "tier_payouts",
+            "type": {
+              "array": [
+                "u64",
+                12
+              ]
+            }
+          },
+          {
+            "name": "tier_winners",
+            "type": {
+              "array": [
+                "u64",
+                12
+              ]
+            }
+          },
+          {
+            "name": "total_user_payout",
+            "type": "u64"
+          },
+          {
+            "name": "house_earned",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "EpochStartedEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "epoch_id",
+            "type": "u64"
+          },
+          {
+            "name": "prize_pool",
+            "type": "u64"
+          },
+          {
+            "name": "special_marble_max",
+            "type": "u8"
+          },
+          {
+            "name": "drawing_time",
+            "type": "u64"
+          },
+          {
+            "name": "total_tickets",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GlobalConfigInitialized",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool_total_cap",
+            "type": "u64"
+          },
+          {
+            "name": "ticket_price",
+            "type": "u64"
+          },
+          {
+            "name": "normal_marble_max",
+            "type": "u8"
+          },
+          {
+            "name": "drawing_duration",
+            "type": "u64"
+          },
+          {
+            "name": "current_epoch_id",
+            "type": "u64"
+          },
+          {
+            "name": "lp_target_percent",
+            "type": "u64"
+          },
+          {
+            "name": "rngkp",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GlobalState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "switchboard_random_account",
+            "type": "pubkey"
+          },
+          {
+            "name": "pool_total_cap",
+            "type": "u64"
+          },
+          {
+            "name": "normal_marble_max",
+            "type": "u8"
+          },
+          {
+            "name": "ticket_price",
+            "type": "u64"
+          },
+          {
+            "name": "lp_target_percent",
+            "type": "u64"
+          },
+          {
+            "name": "edge_per_ticket",
+            "type": "u64"
+          },
+          {
+            "name": "special_ball_min",
+            "type": "u8"
+          },
+          {
+            "name": "special_ball_soft_cap",
+            "type": "u8"
+          },
+          {
+            "name": "special_ball_hard_cap",
+            "type": "u8"
+          },
+          {
+            "name": "protocol_fee",
+            "type": "u64"
+          },
+          {
+            "name": "protocol_fee_threshold",
+            "type": "u64"
+          },
+          {
+            "name": "current_epoch_id",
+            "type": "u64"
+          },
+          {
+            "name": "commit_slot",
+            "type": "u64"
+          },
+          {
+            "name": "lp_pool_cap",
+            "type": "u64"
+          },
+          {
+            "name": "allow_ticket_purchase",
+            "type": "bool"
+          },
+          {
+            "name": "drawing_duration",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LPInfo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "consolidated_shares",
+            "type": "u64"
+          },
+          {
+            "name": "last_deposit_info",
+            "type": {
+              "defined": {
+                "name": "DepositInfo"
+              }
+            }
+          },
+          {
+            "name": "withdrawal_info",
+            "type": {
+              "defined": {
+                "name": "WithdrawalInfo"
+              }
+            }
+          },
+          {
+            "name": "claimable_withdrawals",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LpDepositedEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "epoch_id",
+            "type": "u64"
+          },
+          {
+            "name": "amount_usdc",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LpWithdrawFinalizedEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "epoch_id",
+            "type": "u64"
+          },
+          {
+            "name": "amount_usdc_claimed",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LpWithdrawInitiatedEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "epoch_id",
+            "type": "u64"
+          },
+          {
+            "name": "amount_shares",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PerEpochState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "shares_percentage",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RandomnessCommittedEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "epoch_id",
+            "type": "u64"
+          },
+          {
+            "name": "commit_slot",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TicketClaimedEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "epoch_id",
+            "type": "u64"
+          },
+          {
+            "name": "buyer",
+            "type": "pubkey"
+          },
+          {
+            "name": "packed_ticket",
+            "type": "u64"
+          },
+          {
+            "name": "reward_amount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TicketInput",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "normal_marbles",
+            "type": "bytes"
+          },
+          {
+            "name": "special_marble",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TicketTracker",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "unique_tickets",
+            "type": {
+              "vec": "u64"
+            }
+          },
+          {
+            "name": "duplicate_tickets",
+            "type": {
+              "vec": "u64"
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TicketsBoughtEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "buyer",
+            "type": "pubkey"
+          },
+          {
+            "name": "epoch_id",
+            "type": "u64"
+          },
+          {
+            "name": "packed_tickets",
+            "type": {
+              "vec": "u64"
+            }
+          },
+          {
+            "name": "total_cost",
+            "type": "u64"
+          },
+          {
+            "name": "tickets_count",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TierPayouts",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "tier_payouts",
+            "type": {
+              "array": [
+                "u64",
+                12
+              ]
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UserTickets",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "tickets",
+            "type": {
+              "vec": "u64"
+            }
+          },
+          {
+            "name": "claimed",
+            "type": {
+              "vec": "bool"
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "WinningTicketDrawnEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "epoch_id",
+            "type": "u64"
+          },
+          {
+            "name": "packed_winning_ticket",
+            "type": "u64"
+          },
+          {
+            "name": "normal_marble_max",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "WithdrawalInfo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "amount_in_shares",
+            "type": "u64"
+          },
+          {
+            "name": "epoch_id",
+            "type": "u64"
+          }
+        ]
+      }
+    }
+  ]
+}

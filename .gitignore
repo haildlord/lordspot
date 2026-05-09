@@ -8,18 +8,38 @@ surfnet-temp.sqlite
 
 # Node & Package Managers
 node_modules
+**/node_modules/
 .yarn
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Environment & Secrets
+# Environment & Secrets (High Priority)
 .env
-tests/utils/keys
+frontend/.env
+backend/.env
+**/.env.local
+**/.env.*.local
+tests/utils/keys/
 
-# System Files
+# Security: Keypairs
+rng.json
+rng_authority.json
+backend/rng_authority.json
+
+# Frontend Builds
+frontend/dist/
+frontend/build/
+
+# Supabase
+supabase/.temp/
+supabase/functions/.temp/
+
+# System Files & IDEs
 .DS_Store
 Thumbs.db
+.vscode/
+.idea/
 
 # Surfpool local state & logs
 .surfpool/

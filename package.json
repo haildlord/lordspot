@@ -3,13 +3,16 @@
   "scripts": {
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
-    "surf:test": "dotenv -e .env -- cp surfnet-state.sqlite surfnet-temp.sqlite && surfpool start --rpc-url \"https://devnet.helius-rpc.com/?api-key=$HELIUS_API_KEY\" --db ./surfnet-temp.sqlite",
-    "surf:commit": "cp surfnet-temp.sqlite surfnet-state.sqlite"
+    "surf:test": "cp surfnet-state.sqlite surfnet-temp.sqlite && surfpool start --rpc-url \"https://devnet.helius-rpc.com/?api-key=$HELIUS_API_KEY\" --db ./surfnet-temp.sqlite",
+    "surf:commit": "cp surfnet-temp.sqlite surfnet-state.sqlite",
+    "build:program": "anchor build && cp ./target/idl/lords_pot.json ./supabase/functions/helius-receiver/lords_pot.json && cp ./target/idl/lords_pot.json ./frontend/src/idl/lords_pot.json && cp ./target/idl/lords_pot.json ./backend/lords_pot.json"
   },
   "dependencies": {
     "@": "switchboard-xyz/on-demand",
     "@coral-xyz/anchor": "^0.32.1",
-    "@switchboard-xyz/on-demand": "^3.9.0"
+    "@supabase/supabase-js": "^2.105.0",
+    "@switchboard-xyz/on-demand": "^3.9.0",
+    "dotenv": "^17.4.2"
   },
   "devDependencies": {
     "@types/bn.js": "^5.1.0",

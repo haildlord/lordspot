@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-lordspot = "7eBJpDhqrtdEyBnrHwNb6QEbJ4YQxz9k2KacKH6oe9W6"
+lordspot = "2cm7EMzH5ne9N8A8fDn6e2ZHtpBxwaFrYNGkpQcn8DAi"
 
 [registry]
 url = "https://api.apr.dev"
@@ -20,3 +20,4 @@ test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 \"tests/**/*.ts\""
 initialize = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/initialize.ts"
 buytickets = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/buy_tickets.ts"
 runlordspot = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/run_lordspot.ts"
+lordspot = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/lordspot.ts"

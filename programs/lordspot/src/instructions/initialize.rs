@@ -5,6 +5,7 @@ use crate::error::LordspotError;
 use crate::utility::main::*;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
+use crate::event::{GlobalConfigInitialized};
 // ! in this page we have used ADMIN_PUBKEY when deploying use : DEVNET_ADMIN_PUBKEY
 
 pub fn init_handler(
@@ -62,6 +63,16 @@ pub fn init_handler(
     drawing_state.bump = ctx.bumps.drawing_state_account;
     drawing_state.lordspot_lock = false;
 
+    emit!(GlobalConfigInitialized{
+        pool_total_cap,
+        ticket_price,
+        normal_marble_max,
+        drawing_duration,
+        current_epoch_id: global.current_epoch_id,
+        lp_target_percent,
+        rngkp,
+    });
+
     Ok(())
 }
 
@@ -113,7 +124,7 @@ pub struct Initialize<'info> {
     pub signer : Signer<'info>,
 
     #[account(
-        init,
+        init_if_needed, // ! change to init once deploying
         payer = signer,
         space = 8 + GlobalState::INIT_SPACE,
         seeds = [SEED_GLOBAL],
@@ -122,7 +133,7 @@ pub struct Initialize<'info> {
     pub global_state_account: Account<'info, GlobalState>,
 
     #[account(
-        init,
+        init_if_needed, // ! change to init once deploying
         payer = signer,
         space = 8 + PerEpochState::INIT_SPACE,
         seeds = [SEED_PER_EPOCH, 0u64.to_le_bytes().as_ref()],
@@ -131,7 +142,7 @@ pub struct Initialize<'info> {
     pub per_epoch_state_account : Account<'info, PerEpochState>,
 
     #[account(
-        init,
+        init_if_needed, // ! change to init once deploying
         payer = signer,
         space = 8 + EpochIdToLPDrawingState::INIT_SPACE,
         seeds = [SEED_LP_DRAWING_STATE, 0u64.to_le_bytes().as_ref()],
@@ -145,7 +156,7 @@ pub struct Initialize<'info> {
     pub usdc_mint: InterfaceAccount<'info, Mint>,
 
     #[account(
-        init,
+        init_if_needed, // ! change to init once deploying
         payer = signer,
         space = 8 + DrawingState::INIT_SPACE,
         seeds = [SEED_DRAWING_STATE, 0u64.to_le_bytes().as_ref()],
@@ -154,7 +165,7 @@ pub struct Initialize<'info> {
     pub drawing_state_account: Account<'info, DrawingState>,
 
     #[account(
-        init,
+        init_if_needed, // ! change to init once deploying
         payer = signer,
         associated_token::mint = usdc_mint,
         associated_token::authority = global_state_account,
@@ -179,7 +190,7 @@ pub struct InitializeLordsPot<'info> {
         mut,
         seeds = [SEED_GLOBAL],
         bump = global_state_account.bump,
-        constraint = global_state_account.current_epoch_id == 0 @ LordspotError::LordspotAlreadyInitialized
+        // ! uncomment this when deploying, constraint = global_state_account.current_epoch_id == 0 @ LordspotError::LordspotAlreadyInitialized
     )]
     pub global_state_account: Account<'info, GlobalState>,
 
@@ -190,7 +201,11 @@ pub struct InitializeLordsPot<'info> {
     )]
     pub per_epoch_state_account : Account<'info, PerEpochState>, // exists and used when current epoch > 0
 
-    pub prev_per_epoch_state_account: Option<Account<'info, PerEpochState>>, // exists and used when current epoch > 0
+    #[account(
+        seeds = [SEED_PER_EPOCH, global_state_account.current_epoch_id.saturating_sub(1).to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub prev_per_epoch_state_account: Option<Account<'info, PerEpochState>>,
 
     #[account(
         seeds = [SEED_LP_DRAWING_STATE, 0u64.to_le_bytes().as_ref()],
@@ -200,7 +215,7 @@ pub struct InitializeLordsPot<'info> {
     pub drawing_id_to_lp_drawing_state : Account<'info, EpochIdToLPDrawingState>,
 
     #[account(
-        init,
+        init_if_needed, // ! change to init once deploying
         payer = signer,
         space = 8 + EpochIdToLPDrawingState::INIT_SPACE,
         seeds = [SEED_LP_DRAWING_STATE, 1u64.to_le_bytes().as_ref()],
@@ -209,7 +224,7 @@ pub struct InitializeLordsPot<'info> {
     pub next_drawing_id_to_lp_drawing_state : Account<'info, EpochIdToLPDrawingState>,
 
     #[account(
-        init,
+        init_if_needed, // ! change to init once deploying
         payer = signer,
         space = 8 + DrawingState::INIT_SPACE,
         seeds = [SEED_DRAWING_STATE, 1u64.to_le_bytes().as_ref()],
@@ -218,7 +233,7 @@ pub struct InitializeLordsPot<'info> {
     pub next_drawing_state_account : Account<'info, DrawingState>,
 
     #[account(
-        init,
+        init_if_needed, // ! change to init once deploying
         payer = signer,
         space = 8 + TicketTracker::INIT_SPACE,
         seeds = [SEED_TICKET_TRACKER, 1u64.to_le_bytes().as_ref()],

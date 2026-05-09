@@ -5,7 +5,7 @@ use switchboard_on_demand::accounts::RandomnessAccountData;
 use crate::error::LordspotError;
 use crate::state::{DrawingState, GlobalState, TierPayouts, TicketTracker, EpochIdToLPDrawingState, PerEpochState};
 use crate::utility::{fisher_yates_draw, calculate_tier_winners_and_payouts, pack_ticket, calculate_ticket_tier, process_drawing_settlement, _set_new_drawing_state};
-
+use crate::event::*;
 
 pub fn commit_to_random_num_handler(ctx : Context<CommitToRandomNum>) -> Result<()> {
     let state = &mut ctx.accounts.global_state_account;
@@ -27,13 +27,18 @@ pub fn commit_to_random_num_handler(ctx : Context<CommitToRandomNum>) -> Result<
     // If the SDK sets it to Slot + 1, we verify exactly that.
     // This ensures the randomness account was updated in THIS transaction.
     require!(
-        randomness_data.seed_slot == clock.slot,
+        randomness_data.seed_slot == clock.slot - 1,
         LordspotError::SlotMismatch
     );
 
     require!(randomness_data.get_value(clock.slot).is_err(), LordspotError::AlreadyRevealedRandomValue);
 
     state.commit_slot = randomness_data.seed_slot;
+
+    emit!(RandomnessCommittedEvent {
+        epoch_id: state.current_epoch_id,
+        commit_slot: state.commit_slot,
+    });
 
     Ok(())
 }
@@ -90,9 +95,9 @@ pub fn save_random_num_handler(ctx: Context<SaveRandomNum>, use_known_winning_ti
     // Use your utility to pack the [u8; 5] and the u8 special ball into the u64
     // We pass winning_special[0] because fisher_yates returns a Vec
     drawing.winning_ticket = if use_known_winning_ticket == true {
-         4398046511166
+        134217790 // ([1, 2, 3, 4, 5] | 5) with normal_max = 22
     } else {
-        pack_ticket(&winning_normals, winning_special[0], global.normal_marble_max)
+        pack_ticket(&winning_normals, winning_special[0], global.normal_marble_max)?
     };
 
     ctx.accounts.next_drawing_state_account.bump = ctx.bumps.next_drawing_state_account;
@@ -101,6 +106,12 @@ pub fn save_random_num_handler(ctx: Context<SaveRandomNum>, use_known_winning_ti
 
     msg!("🎰 Drawing Finalized for Epoch: {}", global.current_epoch_id);
     msg!("Packed Winning Ticket: {}", drawing.winning_ticket);
+
+    emit!(WinningTicketDrawnEvent {
+        epoch_id: global.current_epoch_id,
+        packed_winning_ticket: drawing.winning_ticket,
+        normal_marble_max: global.normal_marble_max,
+    });
 
     Ok(())
 }
@@ -128,7 +139,7 @@ pub fn run_lordspot_handler(ctx: Context<RunLordspot>) -> Result<()> {
     }
 
     // 4. Pass BOTH arrays to the calculator
-    let (tier_payouts_array, total_user_payout) =
+    let (tier_payouts_array, tier_winners_array, total_user_payout) =
         calculate_tier_winners_and_payouts(
             drawing.prize_pool,
             global.normal_marble_max,
@@ -143,6 +154,20 @@ pub fn run_lordspot_handler(ctx: Context<RunLordspot>) -> Result<()> {
     ctx.accounts.next_lp_drawing_state.bump = ctx.bumps.next_lp_drawing_state;
     ctx.accounts.current_per_epoch_state.bump = ctx.bumps.current_per_epoch_state;
 
+    let guaranteed_house_cut = drawing.total_tickets
+        .checked_mul(global.edge_per_ticket)
+        .unwrap_or(0);
+
+    // --- NEW: Emit the Settlement Event BEFORE we modify the drawing state! ---
+    emit!(EpochSettledEvent {
+        epoch_id: global.current_epoch_id,
+        prize_pool: drawing.prize_pool,
+        tier_payouts: tier_payouts_array,
+        tier_winners: tier_winners_array,
+        total_user_payout,
+        house_earned: guaranteed_house_cut
+    });
+
     let (new_lp_value, _) = process_drawing_settlement(
         global,
         &ctx.accounts.lp_drawing_state,
@@ -150,7 +175,7 @@ pub fn run_lordspot_handler(ctx: Context<RunLordspot>) -> Result<()> {
         &mut ctx.accounts.current_per_epoch_state,
         &ctx.accounts.prev_per_epoch_state,
         total_user_payout,
-        0, // ! protocl fee amount not implimented -- will do it later
+        0,
     )?;
 
     let clock = Clock::get()?;
@@ -158,8 +183,7 @@ pub fn run_lordspot_handler(ctx: Context<RunLordspot>) -> Result<()> {
     let new_deadline = time_now
         .checked_add(global.drawing_duration)
         .ok_or(LordspotError::AirthMaticOverflow)?;
-
-
+    
     _set_new_drawing_state(
         global,
         &mut ctx.accounts.next_lp_drawing_state,
@@ -195,7 +219,7 @@ pub struct CommitToRandomNum<'info>{
         mut,
         seeds = [SEED_DRAWING_STATE, global_state_account.current_epoch_id.to_le_bytes().as_ref()],
         bump = drawing_state.bump,
-        constraint = drawing_state.lordspot_lock == false @ LordspotError::LordspotAlreadyLocked,
+        // ! uncomment this line : constraint = drawing_state.lordspot_lock == false @ LordspotError::LordspotAlreadyLocked,
     )]
     pub drawing_state: Account<'info, DrawingState>,
 }
@@ -218,6 +242,7 @@ pub struct SaveRandomNum<'info>{
     pub switchboard_random_account: AccountInfo<'info>,
 
     #[account(
+        mut,
         seeds = [SEED_DRAWING_STATE, global_state_account.current_epoch_id.to_le_bytes().as_ref()],
         bump = drawing_state.bump,
         constraint = drawing_state.lordspot_lock == true @ LordspotError::LordspotNotLocked,
@@ -225,7 +250,7 @@ pub struct SaveRandomNum<'info>{
     pub drawing_state: Account<'info, DrawingState>,
 
     #[account(
-        init,
+        init_if_needed, // ! should be init when deploying
         payer = signer,
         space = 8 + DrawingState::INIT_SPACE,
         seeds = [SEED_DRAWING_STATE, (global_state_account.current_epoch_id + 1).to_le_bytes().as_ref()],
@@ -234,7 +259,7 @@ pub struct SaveRandomNum<'info>{
     pub next_drawing_state_account: Account<'info, DrawingState>,
 
     #[account(
-        init,
+        init_if_needed, // ! should be init when deploying
         payer = signer,
         space = 8 + TicketTracker::INIT_SPACE,
         seeds = [SEED_TICKET_TRACKER, (global_state_account.current_epoch_id + 1).to_le_bytes().as_ref()],
@@ -270,7 +295,7 @@ pub struct RunLordspot<'info> {
     pub ticket_tracker: Account<'info, TicketTracker>,
 
     #[account(
-        init,
+        init_if_needed, // ! should be init when deploying
         payer = signer,
         space = 8 + TierPayouts::INIT_SPACE,
         seeds = [SEED_TIER_PAYOUTS, global_state_account.current_epoch_id.to_le_bytes().as_ref()],
@@ -288,7 +313,7 @@ pub struct RunLordspot<'info> {
 
     // Next epoch LP state (will be created / updated)
     #[account(
-        init,
+        init_if_needed, // ! should be init when deploying
         payer = signer,
         space = 8 + EpochIdToLPDrawingState::INIT_SPACE,
         seeds = [SEED_LP_DRAWING_STATE, (global_state_account.current_epoch_id + 1).to_le_bytes().as_ref()],
@@ -298,7 +323,7 @@ pub struct RunLordspot<'info> {
 
     // Next epoch PerEpochState (used by process_drawing_settlement)
     #[account(
-        init,
+        init_if_needed, // ! should be init when deploying
         payer = signer,
         space = 8 + PerEpochState::INIT_SPACE,
         seeds = [SEED_PER_EPOCH, global_state_account.current_epoch_id.to_le_bytes().as_ref()],
@@ -315,25 +340,3 @@ pub struct RunLordspot<'info> {
 
     pub system_program: Program<'info, System>,
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
