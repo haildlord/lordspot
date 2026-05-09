@@ -14,7 +14,7 @@ import {
     getTierPayoutsPda,
     getUserMintATA,
     getProtocolUsdcVaultAta
-} from '../../../tests/utils/seeds_and_ata';
+} from "../utility/seeds_and_ata.ts";
 
 const PAGE_SIZE = 5;
 

@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAppData } from '../context/AppDataContext';
 
-// PERFECT GRADER: Matches frontend grading with Smart Contract grading
 function gradeTicket(ticketPackedStr: string, winningPackedStr: string, normalMax: number) {
     if (!winningPackedStr) return 0;
     try {

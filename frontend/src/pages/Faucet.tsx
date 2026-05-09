@@ -5,7 +5,7 @@ import { useAnchorProgram } from '../lib/anchor.ts';
 import { BN } from '@coral-xyz/anchor';
 import { CoinCanvas } from '../components/CoinCanvas';
 import {useAppData} from "../context/AppDataContext.tsx";
-import {getLusdcMintAuthorityPda, getUserMintATA} from "../../../tests/utils/seeds_and_ata.ts";
+import {getLusdcMintAuthorityPda, getUserMintATA} from "../utility/seeds_and_ata.ts";
 
 export const Faucet = () => {
     const { publicKey, connected } = useWallet();

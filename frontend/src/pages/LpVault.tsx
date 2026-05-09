@@ -7,7 +7,7 @@ import {
     getLpDrawingStatePda,
     getPerEpochStatePda,
     getProtocolUsdcVaultAta
-} from "../../../tests/utils/seeds_and_ata.ts";
+} from "../utility/seeds_and_ata.ts";
 
 import * as anchor from "@coral-xyz/anchor";
 import { Program, AnchorProvider, BN } from '@coral-xyz/anchor';

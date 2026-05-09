@@ -1,6 +1,6 @@
 import { PublicKey } from "@solana/web3.js";
 import { Program } from "@coral-xyz/anchor";
-import {getLpInfoPda, getPerEpochStatePda} from "../../../tests/utils/seeds_and_ata.ts";
+import {getLpInfoPda, getPerEpochStatePda} from "../utility/seeds_and_ata.ts";
 
 const PRECISE_UNIT = 1_000_000_000_000;
 

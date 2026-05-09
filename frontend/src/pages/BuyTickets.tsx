@@ -16,7 +16,7 @@ import {
     getTicketTrackerPda,
     getUserTicketsPda,
     getProtocolUsdcVaultAta
-} from "../../../tests/utils/seeds_and_ata.ts";
+} from "../utility/seeds_and_ata.ts";
 import {OnGoingEpoch} from "../components/OnGoingEpoch.tsx";
 
 const generateTicket = (normalMax: number, specialMax: number) => {
