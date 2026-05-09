@@ -7,6 +7,8 @@ export const RunLordsPotButton = () => {
     const { connected } = useWallet();
     const { refreshVaultData, next_draw_at, devnet_protocol_programid,  switchboard_random_account, devnet_swtichboard_programid, devnet_swtichboard_queue, isDrawing} = useAppData();
 
+    const render_post_server_link = import.meta.env.VITE_RENDER_POST_SERVER_LINK;
+
     // UI States
     const [crankState, setCrankState] = useState<string>('idle');
     const [errorMessage, setErrorMessage] = useState<string>('');
@@ -58,7 +60,7 @@ export const RunLordsPotButton = () => {
 
         try {
             // Send the request to your secure backend API via Vite proxy
-            const response = await fetch('/api/run-crank', {
+            const response = await fetch(`${render_post_server_link}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

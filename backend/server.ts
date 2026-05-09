@@ -31,7 +31,7 @@ async function retryCommit(randomness: any, queuePubkey: PublicKey, maxRetries =
     }
 }
 
-app.post('/api/run-crank', async (req, res) => {
+app.post('https://runlordspot-server.onrender.com', async (req, res) => {
     try {
         const { programId, sbProgramId, sbQueuePubkey, sbRandomAccount } = req.body;
 

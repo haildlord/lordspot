@@ -131,7 +131,7 @@ describe("lordspot", () => {
       //     })
       //     .rpc();
       //
-      // // # commit - save - runLordspot
+      //  # commit - save - runLordspot
       //
       // const tx10 = await program.methods
       //     .universalClose()
@@ -159,7 +159,7 @@ describe("lordspot", () => {
       //       receiver: wallet.publicKey,
       //     })
       //     .rpc();
-      //
+
       // const tx13 = await program.methods
       //     .universalClose()
       //     .accounts({
@@ -168,7 +168,7 @@ describe("lordspot", () => {
       //       receiver: wallet.publicKey,
       //     })
       //     .rpc();
-      //
+
       // const tx14 = await program.methods
       //     .universalClose()
       //     .accounts({
