@@ -1,7 +1,8 @@
 use anchor_lang::prelude::*;
 use crate::error::LordspotError;
 use crate::state::{EpochIdToLPDrawingState, GlobalState, LPInfo, PerEpochState};
-pub(crate) use crate::utility::main::calculate_next_drawing_lp_pool;
+use crate::utility::main::calculate_next_drawing_lp_pool;
+use crate::{constants::PRECISE_UNIT};
 
 // # lp_deposit()
 pub fn _consolidate_deposits<'info>(
@@ -18,7 +19,7 @@ pub fn _consolidate_deposits<'info>(
             .ok_or(LordspotError::MissingHistoricalEpochAccount)?; // Make sure to add this error!
 
         let shares_to_add = (last.amount as u128)
-            .checked_mul(crate::PRECISE_UNIT as u128)
+            .checked_mul(PRECISE_UNIT as u128)
             .ok_or(LordspotError::AirthMaticOverflow)?
             .checked_div(deposit_epoch_state.shares_percentage as u128)
             .ok_or(LordspotError::AirthMaticUnderflow)?;
@@ -57,7 +58,7 @@ pub fn process_deposit<'info>(
         (epoch_to_lp.pending_withdrawals as u128)
             .checked_mul(prev.shares_percentage as u128)
             .ok_or(LordspotError::AirthMaticOverflow)?
-            .checked_div(crate::PRECISE_UNIT as u128)
+            .checked_div(PRECISE_UNIT as u128)
             .ok_or(LordspotError::AirthMaticUnderflow)? as u64
     };
 
@@ -107,7 +108,7 @@ pub fn _consolidate_withdrawals<'info>(
         let usdc_to_add = (last.amount_in_shares as u128)
             .checked_mul(withdrawal_epoch_state.shares_percentage as u128)
             .ok_or(LordspotError::AirthMaticOverflow)?
-            .checked_div(crate::PRECISE_UNIT as u128)
+            .checked_div(PRECISE_UNIT as u128)
             .ok_or(LordspotError::AirthMaticUnderflow)?;
 
         lp_info.claimable_withdrawals = (lp_info.claimable_withdrawals as u128)
