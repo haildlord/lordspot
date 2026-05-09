@@ -60,7 +60,7 @@ export const RunLordsPotButton = () => {
 
         try {
             // Send the request to your secure backend API via Vite proxy
-            const response = await fetch(`${render_post_server_link}`, {
+            const response = await fetch(`${render_post_server_link}/crank`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

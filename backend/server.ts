@@ -31,7 +31,7 @@ async function retryCommit(randomness: any, queuePubkey: PublicKey, maxRetries =
     }
 }
 
-app.post('https://runlordspot-server.onrender.com', async (req, res) => {
+app.post('/crank', async (req, res) => {
     try {
         const { programId, sbProgramId, sbQueuePubkey, sbRandomAccount } = req.body;
 
@@ -196,7 +196,8 @@ app.post('https://runlordspot-server.onrender.com', async (req, res) => {
 });
 
 
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 3000;
+
 app.listen(PORT, () => {
-    console.log(`LordsPot Secure Relayer running on http://localhost:${PORT}`);
+    console.log(`LordsPot Secure Relayer running on port : ${PORT}`);
 });
