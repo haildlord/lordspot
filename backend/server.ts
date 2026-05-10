@@ -12,12 +12,15 @@ import {
     getPerEpochStatePda,
     getTicketTrackerPda
 } from "./seeds_and_ata";
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
 dotenv.config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 import IDL from "./lords_pot.json";
 
@@ -31,6 +34,9 @@ async function retryCommit(randomness: any, queuePubkey: PublicKey, maxRetries =
     }
 }
 
+// ==========================================
+// 1. CRANK ENDPOINT
+// ==========================================
 app.post('/crank', async (req, res) => {
     try {
         const { programId, sbProgramId, sbQueuePubkey, sbRandomAccount } = req.body;
@@ -67,9 +73,7 @@ app.post('/crank', async (req, res) => {
 
         console.log(`\nCRANK INITIATED FOR EPOCH: ${currentEpochId}`);
 
-        // ==========================================
-        // PHASE 1: COMMIT
-        // ==========================================
+        // Phase 1: Commit
         const commitIx = await retryCommit(randomness, new PublicKey(sbQueuePubkey));
         const commitToRandomNumTx = await lordsPotProgram.methods.commit().accounts({
             signer: rngAuthorityKp.publicKey,
@@ -78,14 +82,11 @@ app.post('/crank', async (req, res) => {
             drawingState: current_drawingStatePda
         }).instruction();
 
-        // 1. MANUALLY SET COMPUTE BUDGET (Bypassing Switchboard's buggy wrapper)
         const computeLimitIx = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({ units: 100_000 });
         const priorityFeeIx = anchor.web3.ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 10_000 });
 
-        // 2. Get the latest blockhash
         const { blockhash, lastValidBlockHeight } = await provider.connection.getLatestBlockhash();
 
-        // 3. Build the V0 Transaction Manually
         const commitMessage = new anchor.web3.TransactionMessage({
             payerKey: rngAuthorityKp.publicKey,
             recentBlockhash: blockhash,
@@ -95,7 +96,6 @@ app.post('/crank', async (req, res) => {
         const commitTx = new anchor.web3.VersionedTransaction(commitMessage);
         commitTx.sign([rngAuthorityKp]);
 
-        // 4. Send and Confirm
         const commitSig = await provider.connection.sendRawTransaction(commitTx.serialize(), { skipPreflight: false });
         await provider.connection.confirmTransaction({
             signature: commitSig,
@@ -106,24 +106,19 @@ app.post('/crank', async (req, res) => {
         console.log(`Phase 1: Commit Successful (UI is now Locked via Webhook)`);
         console.log(`Tx: https://explorer.solana.com/tx/${commitSig}?cluster=devnet`);
 
-        // ==========================================
-        // PHASE 2: REVEAL & SAVE (Draw Balls)
-        // ==========================================
+        // Phase 2: Reveal & Save
         const revealIx = await (randomness as any).revealIx();
-        const saveToRandomNumTx = await lordsPotProgram.methods.save(true).accounts({ // ! change this to false when deploying
+        const saveToRandomNumTx = await lordsPotProgram.methods.save(true).accounts({
             signer: rngAuthorityKp.publicKey,
             nextDrawingStateAccount: nextDrawingStatePda,
             nextTicketTracker: nextTicketTrackerPda
         }).instruction();
 
-        // 1. MANUALLY SET COMPUTE BUDGET (Bumped to 250k because Fisher-Yates loops vary in cost!)
         const computeLimitPhase2Ix = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({ units: 250_000 });
         const priorityFeePhase2Ix = anchor.web3.ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 10_000 });
 
-        // 2. Get a fresh blockhash (It's been ~10 seconds since Phase 1, always grab a fresh one)
         const phase2BlockhashInfo = await provider.connection.getLatestBlockhash();
 
-        // 3. Build the V0 Transaction Manually
         const revealMessage = new anchor.web3.TransactionMessage({
             payerKey: rngAuthorityKp.publicKey,
             recentBlockhash: phase2BlockhashInfo.blockhash,
@@ -133,7 +128,6 @@ app.post('/crank', async (req, res) => {
         const revealTx = new anchor.web3.VersionedTransaction(revealMessage);
         revealTx.sign([rngAuthorityKp]);
 
-        // 4. Send and Confirm
         const revealSig = await provider.connection.sendRawTransaction(revealTx.serialize(), { skipPreflight: false });
         await provider.connection.confirmTransaction({
             signature: revealSig,
@@ -144,29 +138,22 @@ app.post('/crank', async (req, res) => {
         console.log(`Phase 2: Reveal & Save Successful (Balls Drawn via Webhook)`);
         console.log(`Tx: https://explorer.solana.com/tx/${revealSig}?cluster=devnet`);
 
-        // ==========================================
-        // PHASE 3: SETTLE & ROLLOVER
-        // ==========================================
-
+        // Phase 3: Settle & Rollover
         const rolloverAccounts: any = {
             signer: rngAuthorityKp.publicKey,
             nextLpDrawingState: nextLpDrawingStatePda
         };
         if (prevPerEpochStatePda) rolloverAccounts.prevPerEpochState = prevPerEpochStatePda;
 
-        // 1. Get the raw instruction (do NOT use .rpc() here)
         const runLordspotIx = await lordsPotProgram.methods.runLordspot()
             .accounts(rolloverAccounts)
             .instruction();
 
-        // 2. MANUALLY SET COMPUTE BUDGET (Bumped to 300k to safely cover array iterations)
         const computeLimitPhase3Ix = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({ units: 300_000 });
         const priorityFeePhase3Ix = anchor.web3.ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 10_000 });
 
-        // 3. Get a fresh blockhash
         const phase3BlockhashInfo = await provider.connection.getLatestBlockhash();
 
-        // 4. Build the V0 Transaction Manually
         const rolloverMessage = new anchor.web3.TransactionMessage({
             payerKey: rngAuthorityKp.publicKey,
             recentBlockhash: phase3BlockhashInfo.blockhash,
@@ -176,7 +163,6 @@ app.post('/crank', async (req, res) => {
         const rolloverVersionedTx = new anchor.web3.VersionedTransaction(rolloverMessage);
         rolloverVersionedTx.sign([rngAuthorityKp]);
 
-        // 5. Send and Confirm
         const rolloverSig = await provider.connection.sendRawTransaction(rolloverVersionedTx.serialize(), { skipPreflight: false });
         await provider.connection.confirmTransaction({
             signature: rolloverSig,
@@ -195,9 +181,87 @@ app.post('/crank', async (req, res) => {
     }
 });
 
+// ==========================================
+// 2. AI PICK ENDPOINT
+// ==========================================
+app.post('/api/ai-pick', async (req, res) => {
+    try {
+        const { totalPicks, normalMax, specialMax, pastTickets } = req.body;
 
+        // Validation to prevent bad requests
+        if (!totalPicks || !normalMax || !specialMax || !pastTickets || totalPicks > 600) {
+            return res.status(400).json({ success: false, error: "Invalid parameters" });
+        }
+
+        console.log(`Generating ${totalPicks} AI tickets...`);
+
+        // Safely format the past tickets for the prompt
+        const pastTicketsContext = pastTickets.length > 0
+            ? JSON.stringify(pastTickets)
+            : "[] (No tickets have been bought yet in this epoch)";
+
+        // Setup the Model specifically for JSON output
+        const model = genAI.getGenerativeModel({
+            model: "gemini-2.5-flash",
+            generationConfig: {
+                responseMimeType: "application/json",
+            }
+        });
+
+        const prompt = `Imagine you are the world's foremost researcher in behavioral psychology and probability, specializing in how cognitive biases influence human lottery choices.
+        I need you to generate exactly ${totalPicks} new lottery tickets for a user.
+        
+        Here is the historical dataset of tickets already purchased by other players in the current epoch: 
+        ${pastTicketsContext} 
+        
+        Crucial Dataset Context: 
+        In this dataset, each array represents a purchased ticket. Indices 0 through 4 are the 'normal' balls selected, and index 5 is the 'bonus' ball.
+        
+        Your Task:
+        Analyze the dataset to identify human psychological patterns, clustering, and overcrowded number combinations. Based on your behavioral research, generate new tickets that strategically avoid these crowd biases to maximize the player's chances of an unshared jackpot.
+        
+        Strict Constraints for every single ticket:
+        1. 'normals': An array of exactly 5 UNIQUE integers between 1 and ${normalMax}. They MUST be sorted in ascending order.
+        2. 'bonus': A single integer between 1 and ${specialMax}.
+        
+        You must reply with a valid JSON object matching this exact schema:
+        {
+        "tickets": [
+        {
+            "normals": [number, number, number, number, number],
+            "bonus": number
+        }
+        ]
+        }`;
+
+        // Generate and Parse
+        const result = await model.generateContent(prompt);
+        const responseText = result.response.text();
+
+        console.log("Raw Gemini Output:", responseText);
+
+        // Strip markdown backticks if Gemini accidentally included them
+        const cleanText = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const aiData = JSON.parse(cleanText);
+
+        // Send it back to the frontend
+        return res.status(200).json({
+            success: true,
+            tickets: aiData.tickets
+        });
+
+    } catch (error: any) {
+        console.error("AI Pick Error:", error.message);
+        return res.status(500).json({ success: false, error: "The Lord is resting. Try again later." });
+    }
+});
+
+// ==========================================
+// 3. START SINGLE SERVER
+// ==========================================
+// Render provides process.env.PORT automatically. Fallback to 3000 locally.
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-    console.log(`LordsPot Secure Relayer running on port : ${PORT}`);
+    console.log(`LordsPot Unified Relayer & AI Server running on port : ${PORT}`);
 });

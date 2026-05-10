@@ -15,6 +15,7 @@ import {
     getUserMintATA,
     getProtocolUsdcVaultAta
 } from "../utility/seeds_and_ata.ts";
+import {unpackTicketForUI} from "../utility/unpackForUi.ts";
 
 const PAGE_SIZE = 5;
 
@@ -23,19 +24,6 @@ function getTicketStatus(ticket: any, ticketEpoch: number, currentEpoch: number)
     if (ticket.reward > 0 && !ticket.claimed) return 'winner';
     if (ticket.reward > 0 && ticket.claimed) return 'claimed';
     return 'loser';
-}
-
-function unpackTicketForUI(packedStr: string, normalMax: number) {
-    try {
-        const packed = BigInt(packedStr);
-        const numbers: number[] = [];
-        let bonus = 0;
-        for (let i = 0; i <= normalMax; i++) if ((packed & (1n << BigInt(i))) !== 0n) numbers.push(i);
-        for (let i = normalMax + 1; i <= 63; i++) {
-            if ((packed & (1n << BigInt(i))) !== 0n) { bonus = i - normalMax; break; }
-        }
-        return { numbers, bonus };
-    } catch (e) { return { numbers: [0, 0, 0, 0, 0], bonus: 0 }; }
 }
 
 export const MyTickets = () => {
