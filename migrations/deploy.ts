@@ -149,7 +149,7 @@ module.exports = async function (provider: anchor.AnchorProvider) {
     console.log("\n--- STEP 2: Initial LP Deposit ---");
 
     // Depositing a safe, mathematically supported $10,000 to seed the pool.
-    const DEPOSIT_AMOUNT = new anchor.BN(10_000).mul(new anchor.BN(1_000_000));
+    const DEPOSIT_AMOUNT = new anchor.BN(150_000).mul(new anchor.BN(1_000_000));
 
     // 2. Get the Deposit Instruction (DO NOT use .rpc())
     const depositIx = await lordsPotProgram.methods

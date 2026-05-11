@@ -138,7 +138,7 @@ app.post('/crank', async (req, res) => {
             console.log("⏳ [PHASE 2] Winning ticket is 0. Attempting Reveal & Save...");
             try {
                 const revealIx = await (randomness as any).revealIx();
-                const saveToRandomNumTx = await lordsPotProgram.methods.save(true).accounts({
+                const saveToRandomNumTx = await lordsPotProgram.methods.save(false).accounts({
                     signer: rngAuthorityKp.publicKey,
                     nextDrawingStateAccount: nextDrawingStatePda,
                     nextTicketTracker: nextTicketTrackerPda
