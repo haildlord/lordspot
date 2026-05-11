@@ -79,116 +79,125 @@ app.post('/crank', async (req, res) => {
 
         console.log(`⚙️ CURRENT EPOCH ON-CHAIN: ${currentEpochId}`);
 
+        // 🔍 FETCH LIVE ON-CHAIN STATE BEFORE ACTING
+        let currentDrawingState = await lordsPotProgram.account.drawingState.fetch(current_drawingStatePda);
+
         // ==========================================
         // PHASE 1: COMMIT
         // ==========================================
-        try {
-            console.log("⏳ [PHASE 1] Attempting Commit...");
-            const commitIx = await retryCommit(randomness, new PublicKey(sbQueuePubkey));
-            const commitToRandomNumTx = await lordsPotProgram.methods.commit().accounts({
-                signer: rngAuthorityKp.publicKey,
-                globalStateAccount: globalStatePda,
-                switchboardRandomAccount: sbRandomAccount,
-                drawingState: current_drawingStatePda
-            }).instruction();
+        if (!currentDrawingState.lordspotLock) {
+            console.log("⏳ [PHASE 1] Lock is FALSE. Attempting Commit...");
+            try {
+                const commitIx = await retryCommit(randomness, new PublicKey(sbQueuePubkey));
+                const commitToRandomNumTx = await lordsPotProgram.methods.commit().accounts({
+                    signer: rngAuthorityKp.publicKey,
+                    globalStateAccount: globalStatePda,
+                    switchboardRandomAccount: sbRandomAccount,
+                    drawingState: current_drawingStatePda
+                }).instruction();
 
-            const computeLimitIx = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({ units: 100_000 });
-            const priorityFeeIx = anchor.web3.ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 10_000 });
-            const { blockhash, lastValidBlockHeight } = await provider.connection.getLatestBlockhash();
+                const computeLimitIx = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({ units: 100_000 });
+                const priorityFeeIx = anchor.web3.ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 10_000 });
+                const { blockhash, lastValidBlockHeight } = await provider.connection.getLatestBlockhash();
 
-            const commitMessage = new anchor.web3.TransactionMessage({
-                payerKey: rngAuthorityKp.publicKey, recentBlockhash: blockhash,
-                instructions: [computeLimitIx, priorityFeeIx, commitIx, commitToRandomNumTx]
-            }).compileToV0Message();
+                const commitMessage = new anchor.web3.TransactionMessage({
+                    payerKey: rngAuthorityKp.publicKey, recentBlockhash: blockhash,
+                    instructions: [computeLimitIx, priorityFeeIx, commitIx, commitToRandomNumTx]
+                }).compileToV0Message();
 
-            const commitTx = new anchor.web3.VersionedTransaction(commitMessage);
-            commitTx.sign([rngAuthorityKp]);
+                const commitTx = new anchor.web3.VersionedTransaction(commitMessage);
+                commitTx.sign([rngAuthorityKp]);
 
-            const commitSig = await provider.connection.sendRawTransaction(commitTx.serialize(), { skipPreflight: true });
-            const commitConf = await provider.connection.confirmTransaction({ signature: commitSig, blockhash, lastValidBlockHeight }, "confirmed");
+                const commitSig = await provider.connection.sendRawTransaction(commitTx.serialize(), { skipPreflight: true });
+                const commitConf = await provider.connection.confirmTransaction({ signature: commitSig, blockhash, lastValidBlockHeight }, "confirmed");
 
-            if (commitConf.value.err) {
-                console.error("🚨 [PHASE 1] ON-CHAIN ERROR DETECTED:", JSON.stringify(commitConf.value.err));
-                throw new Error(`Phase 1 On-chain error: ${JSON.stringify(commitConf.value.err)}`);
+                if (commitConf.value.err) throw new Error(JSON.stringify(commitConf.value.err));
+
+                console.log(`✅ [PHASE 1] Successful: ${commitSig}`);
+                console.log(`⏱️ Waiting 8 seconds for Switchboard Oracle to resolve...`);
+                await new Promise(resolve => setTimeout(resolve, 8000));
+            } catch (e: any) {
+                const errMsg = e instanceof Error ? e.message : String(e);
+                throw new Error(`Phase 1 Failed: ${errMsg}`); // 🛑 ABORT COMPLETELY
             }
-
-            console.log(`✅ [PHASE 1] Successful: ${commitSig}`);
-
-            // INCREASED WAIT TIME FOR DEVNET ORACLE
-            console.log(`⏱️ Waiting 6 seconds for Switchboard Oracle to fulfill...`);
-            await new Promise(resolve => setTimeout(resolve, 6000));
-
-        } catch (e: any) {
-            console.log(`⚠️ [PHASE 1] Skipped/Failed (Likely already committed): ${e.message.substring(0, 100)}... Moving to Phase 2.`);
+        } else {
+            console.log("⏩ [PHASE 1] Lock is TRUE. Already committed. Skipping to Phase 2.");
         }
+
+        // 🔍 RE-FETCH STATE BEFORE PHASE 2
+        currentDrawingState = await lordsPotProgram.account.drawingState.fetch(current_drawingStatePda);
 
         // ==========================================
         // PHASE 2: REVEAL & SAVE
         // ==========================================
-        try {
-            console.log("⏳ [PHASE 2] Attempting Reveal & Save...");
-            const revealIx = await (randomness as any).revealIx();
-            const saveToRandomNumTx = await lordsPotProgram.methods.save(true).accounts({
-                signer: rngAuthorityKp.publicKey,
-                nextDrawingStateAccount: nextDrawingStatePda,
-                nextTicketTracker: nextTicketTrackerPda
-            }).instruction();
+        if (currentDrawingState.winningTicket.toNumber() === 0) {
+            console.log("⏳ [PHASE 2] Winning ticket is 0. Attempting Reveal & Save...");
+            try {
+                const revealIx = await (randomness as any).revealIx();
+                const saveToRandomNumTx = await lordsPotProgram.methods.save(true).accounts({
+                    signer: rngAuthorityKp.publicKey,
+                    nextDrawingStateAccount: nextDrawingStatePda,
+                    nextTicketTracker: nextTicketTrackerPda
+                }).instruction();
 
-            const computeLimitPhase2Ix = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({ units: 250_000 });
-            const priorityFeePhase2Ix = anchor.web3.ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 10_000 });
-            const phase2BlockhashInfo = await provider.connection.getLatestBlockhash();
+                const computeLimitPhase2Ix = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({ units: 250_000 });
+                const priorityFeePhase2Ix = anchor.web3.ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 10_000 });
+                const phase2BlockhashInfo = await provider.connection.getLatestBlockhash();
 
-            const revealMessage = new anchor.web3.TransactionMessage({
-                payerKey: rngAuthorityKp.publicKey, recentBlockhash: phase2BlockhashInfo.blockhash,
-                instructions: [computeLimitPhase2Ix, priorityFeePhase2Ix, revealIx, saveToRandomNumTx]
-            }).compileToV0Message();
+                const revealMessage = new anchor.web3.TransactionMessage({
+                    payerKey: rngAuthorityKp.publicKey, recentBlockhash: phase2BlockhashInfo.blockhash,
+                    instructions: [computeLimitPhase2Ix, priorityFeePhase2Ix, revealIx, saveToRandomNumTx]
+                }).compileToV0Message();
 
-            const revealTx = new anchor.web3.VersionedTransaction(revealMessage);
-            revealTx.sign([rngAuthorityKp]);
+                const revealTx = new anchor.web3.VersionedTransaction(revealMessage);
+                revealTx.sign([rngAuthorityKp]);
 
-            const revealSig = await provider.connection.sendRawTransaction(revealTx.serialize(), { skipPreflight: true });
-            const revealConf = await provider.connection.confirmTransaction({ signature: revealSig, blockhash: phase2BlockhashInfo.blockhash, lastValidBlockHeight: phase2BlockhashInfo.lastValidBlockHeight }, "confirmed");
+                const revealSig = await provider.connection.sendRawTransaction(revealTx.serialize(), { skipPreflight: true });
+                const revealConf = await provider.connection.confirmTransaction({ signature: revealSig, blockhash: phase2BlockhashInfo.blockhash, lastValidBlockHeight: phase2BlockhashInfo.lastValidBlockHeight }, "confirmed");
 
-            if (revealConf.value.err) {
-                console.error("🚨 [PHASE 2] ON-CHAIN ERROR DETECTED:", JSON.stringify(revealConf.value.err));
-                throw new Error(`Phase 2 On-chain error: ${JSON.stringify(revealConf.value.err)}`);
+                if (revealConf.value.err) throw new Error(JSON.stringify(revealConf.value.err));
+
+                console.log(`✅ [PHASE 2] Successful: ${revealSig}`);
+            } catch (e: any) {
+                const errMsg = e instanceof Error ? e.message : String(e);
+                throw new Error(`Phase 2 Failed: ${errMsg}`); // 🛑 ABORT COMPLETELY! Do not settle without a ticket!
             }
-
-            console.log(`✅ [PHASE 2] Successful: ${revealSig}`);
-        } catch (e: any) {
-            console.log(`⚠️ [PHASE 2] Skipped/Failed (Likely already revealed): ${e.message.substring(0, 100)}... Moving to Phase 3.`);
+        } else {
+            console.log("⏩ [PHASE 2] Winning ticket already drawn. Skipping to Phase 3.");
         }
 
         // ==========================================
         // PHASE 3: SETTLE & ROLLOVER
         // ==========================================
         console.log("⏳ [PHASE 3] Attempting Settle & Rollover...");
-        const rolloverAccounts: any = { signer: rngAuthorityKp.publicKey, nextLpDrawingState: nextLpDrawingStatePda };
-        if (prevPerEpochStatePda) rolloverAccounts.prevPerEpochState = prevPerEpochStatePda;
+        try {
+            const rolloverAccounts: any = { signer: rngAuthorityKp.publicKey, nextLpDrawingState: nextLpDrawingStatePda };
+            if (prevPerEpochStatePda) rolloverAccounts.prevPerEpochState = prevPerEpochStatePda;
 
-        const runLordspotIx = await lordsPotProgram.methods.runLordspot().accounts(rolloverAccounts).instruction();
-        const computeLimitPhase3Ix = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({ units: 300_000 });
-        const priorityFeePhase3Ix = anchor.web3.ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 10_000 });
-        const phase3BlockhashInfo = await provider.connection.getLatestBlockhash();
+            const runLordspotIx = await lordsPotProgram.methods.runLordspot().accounts(rolloverAccounts).instruction();
+            const computeLimitPhase3Ix = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({ units: 300_000 });
+            const priorityFeePhase3Ix = anchor.web3.ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 10_000 });
+            const phase3BlockhashInfo = await provider.connection.getLatestBlockhash();
 
-        const rolloverMessage = new anchor.web3.TransactionMessage({
-            payerKey: rngAuthorityKp.publicKey, recentBlockhash: phase3BlockhashInfo.blockhash,
-            instructions: [computeLimitPhase3Ix, priorityFeePhase3Ix, runLordspotIx]
-        }).compileToV0Message();
+            const rolloverMessage = new anchor.web3.TransactionMessage({
+                payerKey: rngAuthorityKp.publicKey, recentBlockhash: phase3BlockhashInfo.blockhash,
+                instructions: [computeLimitPhase3Ix, priorityFeePhase3Ix, runLordspotIx]
+            }).compileToV0Message();
 
-        const rolloverVersionedTx = new anchor.web3.VersionedTransaction(rolloverMessage);
-        rolloverVersionedTx.sign([rngAuthorityKp]);
+            const rolloverVersionedTx = new anchor.web3.VersionedTransaction(rolloverMessage);
+            rolloverVersionedTx.sign([rngAuthorityKp]);
 
-        const rolloverSig = await provider.connection.sendRawTransaction(rolloverVersionedTx.serialize(), { skipPreflight: false });
-        const rolloverConf = await provider.connection.confirmTransaction({ signature: rolloverSig, blockhash: phase3BlockhashInfo.blockhash, lastValidBlockHeight: phase3BlockhashInfo.lastValidBlockHeight }, "confirmed");
+            const rolloverSig = await provider.connection.sendRawTransaction(rolloverVersionedTx.serialize(), { skipPreflight: false });
+            const rolloverConf = await provider.connection.confirmTransaction({ signature: rolloverSig, blockhash: phase3BlockhashInfo.blockhash, lastValidBlockHeight: phase3BlockhashInfo.lastValidBlockHeight }, "confirmed");
 
-        if (rolloverConf.value.err) {
-            console.error("🚨 [PHASE 3] ON-CHAIN ERROR DETECTED:", JSON.stringify(rolloverConf.value.err));
-            throw new Error(`Phase 3 On-chain error: ${JSON.stringify(rolloverConf.value.err)}`);
+            if (rolloverConf.value.err) throw new Error(JSON.stringify(rolloverConf.value.err));
+
+            console.log(`✅ [PHASE 3] Successful: Epoch Rolled Over! Sig: ${rolloverSig}`);
+            return res.status(200).json({ success: true, txSignature: rolloverSig });
+        } catch (e: any) {
+            const errMsg = e instanceof Error ? e.message : String(e);
+            throw new Error(`Phase 3 Failed: ${errMsg}`);
         }
-
-        console.log(`✅ [PHASE 3] Successful: Epoch Rolled Over! Sig: ${rolloverSig}`);
-        return res.status(200).json({ success: true, txSignature: rolloverSig });
 
     } catch (error: any) {
         console.error("❌ CRITICAL CRANK SERVER ERROR:", error.message);
