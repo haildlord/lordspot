@@ -62,7 +62,7 @@ describe("lordspot", () => {
       //       receiver: wallet.publicKey,
       //     }).signers([phantomSigner])
       //     .rpc();
-      //
+
       // const tx1 = await program.methods
       //     .universalClose()
       //     .accounts({
@@ -71,8 +71,8 @@ describe("lordspot", () => {
       //       receiver: wallet.publicKey,
       //     }).signers([phantomSigner])
       //     .rpc();
-      //
-      //
+
+
       // const tx2 = await program.methods
       //     .universalClose()
       //     .accounts({
@@ -81,7 +81,7 @@ describe("lordspot", () => {
       //       receiver: wallet.publicKey,
       //     }).signers([phantomSigner])
       //     .rpc();
-      //
+
       // const tx3 = await program.methods
       //     .universalClose()
       //     .accounts({
@@ -90,7 +90,7 @@ describe("lordspot", () => {
       //       receiver: wallet.publicKey,
       //     }).signers([phantomSigner])
       //     .rpc();
-      //
+
       // const tx5 = await program.methods
       //     .universalClose()
       //     .accounts({
@@ -99,7 +99,7 @@ describe("lordspot", () => {
       //       receiver: wallet.publicKey,
       //     }).signers([phantomSigner])
       //     .rpc();
-      //
+
       // const tx6 = await program.methods
       //     .universalClose()
       //     .accounts({
@@ -108,7 +108,7 @@ describe("lordspot", () => {
       //       receiver: wallet.publicKey,
       //     }).signers([phantomSigner])
       //     .rpc();
-      // //
+      //
       // const tx7 = await program.methods
       //     .universalClose()
       //     .accounts({
@@ -117,7 +117,7 @@ describe("lordspot", () => {
       //       receiver: wallet.publicKey,
       //     }).signers([phantomSigner])
       //     .rpc();
-      // //
+      //
       // const tx8 = await program.methods
       //     .universalClose()
       //     .accounts({
@@ -156,7 +156,7 @@ describe("lordspot", () => {
       //       receiver: wallet.publicKey,
       //     }).signers([phantomSigner])
       //     .rpc();
-
+      //
       // const tx13 = await program.methods
       //     .universalClose()
       //     .accounts({
@@ -165,7 +165,7 @@ describe("lordspot", () => {
       //       receiver: wallet.publicKey,
       //     }).signers([phantomSigner])
       //     .rpc();
-
+      //
       // const tx14 = await program.methods
       //     .universalClose()
       //     .accounts({
@@ -175,10 +175,7 @@ describe("lordspot", () => {
       //     }).signers([phantomSigner])
       //     .rpc();
 
-
-
         // # after 2 epoch and start of 3rd epoch
-
 
         // const tx15 = await program.methods
         //     .universalClose()
@@ -227,18 +224,10 @@ describe("lordspot", () => {
 
 
         let arr = [
-            // "5iuHB6TdP1wxRdtZnAfGMRqNVy5cbK31YkXXvJVqdhbg",
-            // "NpoMrH6UwwSfRyc2Q1uB1V9k1fDE8GDCFxaPmKdN5eB",
-            // "GCUNrW3T6VQEQCX9xAcZ1bkYfG6aWhMGj44xpqPpr1wu",
-            // "2KJUbtiK1gekAg3yqaECyAdJuxzAif4vVgGmYPUaKjo9",
+            // "BFnNt9EKsfZbf7w1GYkWaYHrA5zwbiiAcUZLst4js9Qc",
+            // "BMxDCNpDDepd1TCfV5ECwmsGnYMY7r1j6yGcupPYDFdo",
+            // "9Z88MBc5HfhKM9zDW3Rfv9f8D6AK648hCS33ava6Dfp3",
             // "HpAYk14jYpomivS4F7oXySN81sdoPvTaHtFsPgiK2jzf",
-            // "9L43gwc671N2gnHCjCdJVBAAteioJaZGu27HKo1SK7Gf",
-            // "7BDJt6b5QPpKDqt7Tv3MzxG9dMohf453w6wXvnYUyTXm",
-            // "GeKkRn6w9AY383LCRJ1rLc8567c47DaXAdGkmKiyWTuf",
-            // "9HAWqxNJSMZLVqe5obUtUHmsZT7tn3spzmh98Cbe8t4d",
-            // "41avLJXArHnXf5TjnCfpSsy2XfbQitwNsXiBjzNNpQxo",
-            // "HRQEgKZ8ePwWcwkgivkkgXoAuGkKr6tXxxRMB8M4UE4C",
-            // "Ee1HdpxciXbtda4BsqtcWM4qeGwmrFTneNN2RRBJi4LR"
         ]
         for (let i = 0; i < arr.length; i++) {
             const tx6 = await program.methods

@@ -34,14 +34,8 @@ async function retryCommit(randomness: any, queuePubkey: PublicKey, maxRetries =
     }
 }
 
-// ==========================================
-// GLOBAL LOCK: THUNDERING HERD PROTECTION
-// ==========================================
 let isCrankInProgress = false;
 
-// ==========================================
-// 1. CRANK ENDPOINT
-// ==========================================
 app.post('/crank', async (req, res) => {
     if (isCrankInProgress) {
         console.log("🛡️ STAMPEDE AVERTED: Crank already running.");
@@ -52,6 +46,10 @@ app.post('/crank', async (req, res) => {
 
     try {
         const { programId, sbProgramId, sbQueuePubkey, sbRandomAccount } = req.body;
+        console.log(`\n==================================================`);
+        console.log(`🚀 INITIATING CRANK PAYLOAD RECEIVED`);
+        console.log(`==================================================`);
+
         const secretKey = process.env.RNG_AUTHORITY_PRIVATE_KEY;
         const heliusapikey = process.env.HELIUS_API_KEY;
 
@@ -79,13 +77,13 @@ app.post('/crank', async (req, res) => {
         const [nextLpDrawingStatePda] = getLpDrawingStatePda(currentEpochId + 1);
         const prevPerEpochStatePda = currentEpochId === 0 ? null : getPerEpochStatePda(currentEpochId - 1)[0];
 
-        console.log(`\n⚙️ CRANK INITIATED FOR EPOCH: ${currentEpochId}`);
+        console.log(`⚙️ CURRENT EPOCH ON-CHAIN: ${currentEpochId}`);
 
         // ==========================================
         // PHASE 1: COMMIT
         // ==========================================
         try {
-            console.log("Attempting Phase 1: Commit...");
+            console.log("⏳ [PHASE 1] Attempting Commit...");
             const commitIx = await retryCommit(randomness, new PublicKey(sbQueuePubkey));
             const commitToRandomNumTx = await lordsPotProgram.methods.commit().accounts({
                 signer: rngAuthorityKp.publicKey,
@@ -109,24 +107,26 @@ app.post('/crank', async (req, res) => {
             const commitSig = await provider.connection.sendRawTransaction(commitTx.serialize(), { skipPreflight: true });
             const commitConf = await provider.connection.confirmTransaction({ signature: commitSig, blockhash, lastValidBlockHeight }, "confirmed");
 
-            // CRITICAL FIX: Check if it actually succeeded on-chain
-            if (commitConf.value.err) throw new Error(`On-chain error: ${JSON.stringify(commitConf.value.err)}`);
+            if (commitConf.value.err) {
+                console.error("🚨 [PHASE 1] ON-CHAIN ERROR DETECTED:", JSON.stringify(commitConf.value.err));
+                throw new Error(`Phase 1 On-chain error: ${JSON.stringify(commitConf.value.err)}`);
+            }
 
-            console.log(`✅ Phase 1 Successful: ${commitSig}`);
+            console.log(`✅ [PHASE 1] Successful: ${commitSig}`);
 
-            // CRITICAL FIX: Give Switchboard Oracle 3 seconds to observe the commit
-            console.log(`⏳ Waiting 3.5 seconds for Switchboard Oracle to prepare reveal...`);
-            await new Promise(resolve => setTimeout(resolve, 3500));
+            // INCREASED WAIT TIME FOR DEVNET ORACLE
+            console.log(`⏱️ Waiting 6 seconds for Switchboard Oracle to fulfill...`);
+            await new Promise(resolve => setTimeout(resolve, 6000));
 
         } catch (e: any) {
-            console.log(`⚠️ Phase 1 Skipped/Failed (Likely already committed): ${e.message.substring(0, 80)}... Moving to Phase 2.`);
+            console.log(`⚠️ [PHASE 1] Skipped/Failed (Likely already committed): ${e.message.substring(0, 100)}... Moving to Phase 2.`);
         }
 
         // ==========================================
         // PHASE 2: REVEAL & SAVE
         // ==========================================
         try {
-            console.log("Attempting Phase 2: Reveal & Save...");
+            console.log("⏳ [PHASE 2] Attempting Reveal & Save...");
             const revealIx = await (randomness as any).revealIx();
             const saveToRandomNumTx = await lordsPotProgram.methods.save(true).accounts({
                 signer: rngAuthorityKp.publicKey,
@@ -149,18 +149,20 @@ app.post('/crank', async (req, res) => {
             const revealSig = await provider.connection.sendRawTransaction(revealTx.serialize(), { skipPreflight: true });
             const revealConf = await provider.connection.confirmTransaction({ signature: revealSig, blockhash: phase2BlockhashInfo.blockhash, lastValidBlockHeight: phase2BlockhashInfo.lastValidBlockHeight }, "confirmed");
 
-            // CRITICAL FIX: Check if it actually succeeded on-chain
-            if (revealConf.value.err) throw new Error(`On-chain error: ${JSON.stringify(revealConf.value.err)}`);
+            if (revealConf.value.err) {
+                console.error("🚨 [PHASE 2] ON-CHAIN ERROR DETECTED:", JSON.stringify(revealConf.value.err));
+                throw new Error(`Phase 2 On-chain error: ${JSON.stringify(revealConf.value.err)}`);
+            }
 
-            console.log(`✅ Phase 2 Successful: ${revealSig}`);
+            console.log(`✅ [PHASE 2] Successful: ${revealSig}`);
         } catch (e: any) {
-            console.log(`⚠️ Phase 2 Skipped/Failed (Likely already revealed): ${e.message.substring(0, 80)}... Moving to Phase 3.`);
+            console.log(`⚠️ [PHASE 2] Skipped/Failed (Likely already revealed): ${e.message.substring(0, 100)}... Moving to Phase 3.`);
         }
 
         // ==========================================
-        // PHASE 3: SETTLE & ROLLOVER (Must Succeed)
+        // PHASE 3: SETTLE & ROLLOVER
         // ==========================================
-        console.log("Attempting Phase 3: Settle & Rollover...");
+        console.log("⏳ [PHASE 3] Attempting Settle & Rollover...");
         const rolloverAccounts: any = { signer: rngAuthorityKp.publicKey, nextLpDrawingState: nextLpDrawingStatePda };
         if (prevPerEpochStatePda) rolloverAccounts.prevPerEpochState = prevPerEpochStatePda;
 
@@ -177,21 +179,24 @@ app.post('/crank', async (req, res) => {
         const rolloverVersionedTx = new anchor.web3.VersionedTransaction(rolloverMessage);
         rolloverVersionedTx.sign([rngAuthorityKp]);
 
-        // skipPreflight is false here, which is safe for the final step to enforce it runs cleanly
         const rolloverSig = await provider.connection.sendRawTransaction(rolloverVersionedTx.serialize(), { skipPreflight: false });
         const rolloverConf = await provider.connection.confirmTransaction({ signature: rolloverSig, blockhash: phase3BlockhashInfo.blockhash, lastValidBlockHeight: phase3BlockhashInfo.lastValidBlockHeight }, "confirmed");
 
-        if (rolloverConf.value.err) throw new Error(`On-chain error: ${JSON.stringify(rolloverConf.value.err)}`);
+        if (rolloverConf.value.err) {
+            console.error("🚨 [PHASE 3] ON-CHAIN ERROR DETECTED:", JSON.stringify(rolloverConf.value.err));
+            throw new Error(`Phase 3 On-chain error: ${JSON.stringify(rolloverConf.value.err)}`);
+        }
 
-        console.log(`✅ Phase 3 Successful: Epoch Rolled Over! Sig: ${rolloverSig}`);
+        console.log(`✅ [PHASE 3] Successful: Epoch Rolled Over! Sig: ${rolloverSig}`);
         return res.status(200).json({ success: true, txSignature: rolloverSig });
 
     } catch (error: any) {
-        console.error("❌ Crank Server Error (Phase 3 Failed):", error.message);
+        console.error("❌ CRITICAL CRANK SERVER ERROR:", error.message);
         return res.status(500).json({ success: false, error: error.message });
     } finally {
         isCrankInProgress = false;
         console.log("🔓 Crank lock released.");
+        console.log(`==================================================\n`);
     }
 });
 

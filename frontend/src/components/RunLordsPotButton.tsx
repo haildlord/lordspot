@@ -61,6 +61,9 @@ export const RunLordsPotButton = () => {
         setCrankState('running');
 
         try {
+            console.log("🚀 Frontend calling Relayer at:", render_post_server_link);
+            console.log("📦 Payload:", { programId: devnet_protocol_programid, sbProgramId: devnet_swtichboard_programid, sbQueuePubkey: devnet_swtichboard_queue, sbRandomAccount: switchboard_random_account });
+
             const response = await fetch(`${render_post_server_link}/crank`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -78,7 +81,7 @@ export const RunLordsPotButton = () => {
                 throw new Error(data.error || "Backend Relayer Failed");
             }
 
-            console.log("Success! LordsPot Run Complete. Sig:", data.txSignature);
+            console.log("✅ Success! LordsPot Run Complete. Sig:", data.txSignature);
 
             setCrankState('success');
             refreshVaultData();
@@ -86,16 +89,16 @@ export const RunLordsPotButton = () => {
             setTimeout(() => {
                 setCrankState('idle');
                 isCranking.current = false;
-            }, 4000);
+                window.location.reload(); // Hard refresh to sync UI
+            }, 3000);
 
         } catch (error: any) {
-            console.error("Crank Failed:", error);
+            console.error("❌ Crank Failed:", error);
             setErrorMessage(error.message || "Transaction failed");
             setCrankState('error');
             setTimeout(() => {
                 setCrankState('idle');
                 isCranking.current = false;
-                // If it fails, we allow them to click the button to try again manually
                 hasAutoCranked.current = false;
             }, 3001);
         }

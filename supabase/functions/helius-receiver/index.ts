@@ -258,7 +258,8 @@ Deno.serve(async (req) => {
                     else if (eventName === "ticketsboughtevent") await handleTicketsBought(supabase, event.data, signature);
                     else if (eventName === "ticketclaimedevent") await handleTicketClaimed(supabase, event.data);
                 } catch (eventProcessingError: any) {
-                    console.error(`💥 CRASH PREVENTED in event ${eventName}:`, eventProcessingError.message);
+                    console.error(`💥 CRASH PREVENTED in event ${eventName}!`);
+                    console.error(`Stack Trace:`, eventProcessingError.stack || eventProcessingError.message);
                 }
             }
         }
