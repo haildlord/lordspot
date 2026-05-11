@@ -62,7 +62,7 @@ describe("lordspot", () => {
       //       receiver: wallet.publicKey,
       //     }).signers([phantomSigner])
       //     .rpc();
-
+      //
       // const tx1 = await program.methods
       //     .universalClose()
       //     .accounts({
@@ -71,8 +71,8 @@ describe("lordspot", () => {
       //       receiver: wallet.publicKey,
       //     }).signers([phantomSigner])
       //     .rpc();
-
-
+      //
+      //
       // const tx2 = await program.methods
       //     .universalClose()
       //     .accounts({
@@ -81,7 +81,7 @@ describe("lordspot", () => {
       //       receiver: wallet.publicKey,
       //     }).signers([phantomSigner])
       //     .rpc();
-
+      //
       // const tx3 = await program.methods
       //     .universalClose()
       //     .accounts({
@@ -90,7 +90,7 @@ describe("lordspot", () => {
       //       receiver: wallet.publicKey,
       //     }).signers([phantomSigner])
       //     .rpc();
-
+      //
       // const tx5 = await program.methods
       //     .universalClose()
       //     .accounts({
@@ -99,7 +99,7 @@ describe("lordspot", () => {
       //       receiver: wallet.publicKey,
       //     }).signers([phantomSigner])
       //     .rpc();
-
+      //
       // const tx6 = await program.methods
       //     .universalClose()
       //     .accounts({
@@ -126,10 +126,10 @@ describe("lordspot", () => {
       //       receiver: wallet.publicKey,
       //     }).signers([phantomSigner])
       //     .rpc();
-
-
-        //  # commit - save - runLordspot
-
+      //
+      //
+      //    // # commit - save - runLordspot
+      //
       // const tx10 = await program.methods
       //     .universalClose()
       //     .accounts({
@@ -174,60 +174,61 @@ describe("lordspot", () => {
       //       receiver: wallet.publicKey,
       //     }).signers([phantomSigner])
       //     .rpc();
-
-        // # after 2 epoch and start of 3rd epoch
-
-        // const tx15 = await program.methods
-        //     .universalClose()
-        //     .accounts({
-        //         admin: phantomSigner.publicKey,
-        //         targetPda: getTierPayoutsPda( 2)[0], // TierPayouts-2
-        //         receiver: wallet.publicKey,
-        //     }).signers([phantomSigner])
-        //     .rpc();
-        //
-        // const tx16 = await program.methods
-        //     .universalClose()
-        //     .accounts({
-        //         admin: phantomSigner.publicKey,
-        //         targetPda: getPerEpochStatePda( 2)[0], // PerEpochState-2
-        //         receiver: wallet.publicKey,
-        //     }).signers([phantomSigner])
-        //     .rpc();
-        //
-        // const tx17 = await program.methods
-        //     .universalClose()
-        //     .accounts({
-        //         admin: phantomSigner.publicKey,
-        //         targetPda: getDrawingStatePda( 3)[0], // DrawingState-3
-        //         receiver: wallet.publicKey,
-        //     }).signers([phantomSigner])
-        //     .rpc();
-        //
-        // const tx18 = await program.methods
-        //     .universalClose()
-        //     .accounts({
-        //         admin: phantomSigner.publicKey,
-        //         targetPda: getTicketTrackerPda( 3)[0], // TicketTracker-3
-        //         receiver: wallet.publicKey,
-        //     }).signers([phantomSigner])
-        //     .rpc();
-        //
-        // const tx19 = await program.methods
-        //     .universalClose()
-        //     .accounts({
-        //         admin: phantomSigner.publicKey,
-        //         targetPda: getLpDrawingStatePda( 3)[0], // EpochIdToLPDrawingState-3
-        //         receiver: wallet.publicKey,
-        //     }).signers([phantomSigner])
-        //     .rpc();
+      //
+      //   // # after 2 epoch and start of 3rd epoch
+      //
+      //   const tx15 = await program.methods
+      //       .universalClose()
+      //       .accounts({
+      //           admin: phantomSigner.publicKey,
+      //           targetPda: getTierPayoutsPda( 2)[0], // TierPayouts-2
+      //           receiver: wallet.publicKey,
+      //       }).signers([phantomSigner])
+      //       .rpc();
+      //
+      //   const tx16 = await program.methods
+      //       .universalClose()
+      //       .accounts({
+      //           admin: phantomSigner.publicKey,
+      //           targetPda: getPerEpochStatePda( 2)[0], // PerEpochState-2
+      //           receiver: wallet.publicKey,
+      //       }).signers([phantomSigner])
+      //       .rpc();
+      //
+      //   const tx17 = await program.methods
+      //       .universalClose()
+      //       .accounts({
+      //           admin: phantomSigner.publicKey,
+      //           targetPda: getDrawingStatePda( 3)[0], // DrawingState-3
+      //           receiver: wallet.publicKey,
+      //       }).signers([phantomSigner])
+      //       .rpc();
+      //
+      //   const tx18 = await program.methods
+      //       .universalClose()
+      //       .accounts({
+      //           admin: phantomSigner.publicKey,
+      //           targetPda: getTicketTrackerPda( 3)[0], // TicketTracker-3
+      //           receiver: wallet.publicKey,
+      //       }).signers([phantomSigner])
+      //       .rpc();
+      //
+      //   const tx19 = await program.methods
+      //       .universalClose()
+      //       .accounts({
+      //           admin: phantomSigner.publicKey,
+      //           targetPda: getLpDrawingStatePda( 3)[0], // EpochIdToLPDrawingState-3
+      //           receiver: wallet.publicKey,
+      //       }).signers([phantomSigner])
+      //       .rpc();
 
 
         let arr = [
-            // "BFnNt9EKsfZbf7w1GYkWaYHrA5zwbiiAcUZLst4js9Qc",
-            // "BMxDCNpDDepd1TCfV5ECwmsGnYMY7r1j6yGcupPYDFdo",
-            // "9Z88MBc5HfhKM9zDW3Rfv9f8D6AK648hCS33ava6Dfp3",
-            // "HpAYk14jYpomivS4F7oXySN81sdoPvTaHtFsPgiK2jzf",
+            // "BFnNt9EKsfZbf7w1GYkWaYHrA5zwbiiAcUZLst4js9Qc", // anant
+            // "BMxDCNpDDepd1TCfV5ECwmsGnYMY7r1j6yGcupPYDFdo", // milan
+            // "9Z88MBc5HfhKM9zDW3Rfv9f8D6AK648hCS33ava6Dfp3", // unnati
+            // "HpAYk14jYpomivS4F7oXySN81sdoPvTaHtFsPgiK2jzf", // me
+            // "4MXuJrbN8X93oncAvTbhn3rDp11xy9DmyVkD7RrszeP5"     // ujjawal
         ]
         for (let i = 0; i < arr.length; i++) {
             const tx6 = await program.methods

@@ -36,6 +36,9 @@ async function retryCommit(randomness: any, queuePubkey: PublicKey, maxRetries =
 
 let isCrankInProgress = false;
 
+// ==========================================
+// 1. CRANK ENDPOINT
+// ==========================================
 app.post('/crank', async (req, res) => {
     if (isCrankInProgress) {
         console.log("🛡️ STAMPEDE AVERTED: Crank already running.");
@@ -96,7 +99,8 @@ app.post('/crank', async (req, res) => {
                     drawingState: current_drawingStatePda
                 }).instruction();
 
-                const computeLimitIx = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({ units: 100_000 });
+                // 🚀 BUMPED COMPUTE UNITS
+                const computeLimitIx = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 });
                 const priorityFeeIx = anchor.web3.ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 10_000 });
                 const { blockhash, lastValidBlockHeight } = await provider.connection.getLatestBlockhash();
 
@@ -140,7 +144,8 @@ app.post('/crank', async (req, res) => {
                     nextTicketTracker: nextTicketTrackerPda
                 }).instruction();
 
-                const computeLimitPhase2Ix = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({ units: 250_000 });
+                // 🚀 MASSIVELY BUMPED COMPUTE UNITS (FROM 250K TO 1 MILLION)
+                const computeLimitPhase2Ix = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 });
                 const priorityFeePhase2Ix = anchor.web3.ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 10_000 });
                 const phase2BlockhashInfo = await provider.connection.getLatestBlockhash();
 
@@ -175,7 +180,9 @@ app.post('/crank', async (req, res) => {
             if (prevPerEpochStatePda) rolloverAccounts.prevPerEpochState = prevPerEpochStatePda;
 
             const runLordspotIx = await lordsPotProgram.methods.runLordspot().accounts(rolloverAccounts).instruction();
-            const computeLimitPhase3Ix = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({ units: 300_000 });
+
+            // 🚀 MASSIVELY BUMPED COMPUTE UNITS (FROM 300K TO 1 MILLION)
+            const computeLimitPhase3Ix = anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 });
             const priorityFeePhase3Ix = anchor.web3.ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 10_000 });
             const phase3BlockhashInfo = await provider.connection.getLatestBlockhash();
 
