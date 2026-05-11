@@ -7,39 +7,32 @@ use solana_program::hash::hashv;
 pub fn fisher_yates_draw(
     seed: [u8; 32],
     min_range: u8,
-    max_range: u8,
+    mut max_range: u8,
     count: u8,
 ) -> Result<Vec<u8>> {
+
+    if max_range < min_range + count.saturating_sub(1) {
+        max_range = min_range + count.saturating_sub(1);
+    }
+
     let range_size = (max_range - min_range + 1) as usize;
     let mut pool: Vec<u8> = (min_range..=max_range).collect();
-    let mut nonce: u64 = 0;
 
     for i in (1..range_size).rev() {
-        let rand_idx: u64;
+        // Hash exactly ONCE per marble. No infinite loops.
+        let hash = hashv(&[
+            &seed,
+            &(i as u64).to_le_bytes(),
+        ]);
 
-        loop {
-            let hash = hashv(&[
-                &seed,
-                &nonce.to_le_bytes(),
-            ]);
+        let mut buf = [0u8; 8];
+        buf.copy_from_slice(&hash.to_bytes()[0..8]);
+        let rand_val = u64::from_le_bytes(buf);
 
-            let hash_bytes = hash.to_bytes();
-
-            let mut buf = [0u8; 8];
-            buf.copy_from_slice(&hash_bytes[0..8]);
-            let rand_val = u64::from_le_bytes(buf);
-
-            let limit = (u64::MAX / (i as u64 + 1)) * (i as u64 + 1);
-
-            if rand_val < limit {
-                rand_idx = rand_val % (i as u64 + 1);
-                break;
-            }
-            nonce += 1;
-        }
+        // Direct modulo operation. Lightning fast on Solana.
+        let rand_idx = rand_val % (i as u64 + 1);
 
         pool.swap(i, rand_idx as usize);
-        nonce += 1;
     }
 
     Ok(pool[0..count as usize].to_vec())
