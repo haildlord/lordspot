@@ -1,7 +1,6 @@
 use anchor_lang::prelude::*;
 
-pub const ADMIN_PUBKEY : Pubkey = pubkey!("H8Q7CUvPigtSxfd13TKRuFrwdJtc6pJu9BMNhbXF9yAY"); // ! Change this to your Origitnal Phantaom Wallet Key
-pub const DEVNET_ADMIN_PUBKEY : Pubkey = pubkey!("HpAYk14jYpomivS4F7oXySN81sdoPvTaHtFsPgiK2jzf");
+pub const ADMIN_PUBKEY : Pubkey = pubkey!("HpAYk14jYpomivS4F7oXySN81sdoPvTaHtFsPgiK2jzf");
 
 pub const MOCK_USDC_DEVNET_ADDRESS: Pubkey = pubkey!("6EkfBDuK9TkW3dxFaWqX1rQit9gmYgo4eUMmZVs6H7wH");
 
@@ -11,7 +10,6 @@ pub const NORMAL_SELECTABLE_MARBLE_COUNT : u8 = 5;
 pub const SPECIAL_SELECTABLE_MARBLE_COUNT : u8 = 1;
 pub const MAX_MARBLE_RANGE_COUNT : u8 = 255;
 pub const TOTAL_TIER_COUNT : u8 = 12;
-
 
 // # Seeds :
 pub const SEED_PER_EPOCH: &[u8] = b"per_epoch_state_account";

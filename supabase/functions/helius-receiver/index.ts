@@ -65,18 +65,22 @@ async function handleLpActivity(supabase: SupabaseClient, eventName: string, eDa
 
     let actionType = '';
     let amount = 0;
+    let unit = 'USDC'; // Default to USDC
 
     const normalizedEventName = eventName.toLowerCase();
 
     if (normalizedEventName === 'lpdepositedevent') {
         actionType = 'DEPOSIT';
         amount = eData.amount_usdc.toString();
+        unit = 'USDC';
     } else if (normalizedEventName === 'lpwithdrawinitiatedevent') {
         actionType = 'INITIATE_WITHDRAW';
         amount = eData.amount_shares.toString();
+        unit = 'SHARES'; // Explicitly set to SHARES
     } else if (normalizedEventName === 'lpwithdrawfinalizedevent') {
         actionType = 'FINALIZE_WITHDRAW';
         amount = eData.amount_usdc_claimed.toString();
+        unit = 'USDC';
     }
 
     const { error } = await supabase
@@ -86,6 +90,7 @@ async function handleLpActivity(supabase: SupabaseClient, eventName: string, eDa
             action_type: actionType,
             epoch_id: eData.epoch_id.toString(),
             amount: amount,
+            unit: unit, // Sending the unit to the database
             tx_signature: signature
         });
 
@@ -97,7 +102,7 @@ async function handleLpActivity(supabase: SupabaseClient, eventName: string, eDa
         console.error(`❌ LP Activity DB Error: ${error.message}`);
         return;
     }
-    console.log(`✅ ${actionType} logged successfully!`);
+    console.log(`✅ ${actionType} logged successfully with unit ${unit}!`);
 }
 
 async function handleRandomnessCommitted(supabase: SupabaseClient, eData: any) {
@@ -176,7 +181,6 @@ async function handleEpochSettled(supabase: SupabaseClient, eData: any) {
 
     console.log("🔍 Assigning payouts to individual user tickets...");
 
-    // FIX 1: Delay added so the Read Replica syncs the newly inserted winning ticket
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     const { data: epochData } = await supabase.from('epochs').select('packed_winning_ticket').eq('epoch_id', epochId).single();
@@ -187,7 +191,6 @@ async function handleEpochSettled(supabase: SupabaseClient, eData: any) {
         return;
     }
 
-    // FIX 2: We MUST select 'id' because it is the Primary Key required for upsert!
     const { data: userTickets } = await supabase.from('ticket_purchases')
         .select('id, signature, packed_ticket, buyer_address, epoch_id, claimed')
         .eq('epoch_id', epochId);
@@ -202,7 +205,7 @@ async function handleEpochSettled(supabase: SupabaseClient, eData: any) {
 
             if (payout > 0) {
                 updates.push({
-                    id: t.id,                 // <-- FIX 2: Include the Primary Key here!
+                    id: t.id,
                     signature: t.signature,
                     epoch_id: t.epoch_id,
                     buyer_address: t.buyer_address,
@@ -300,7 +303,6 @@ async function handleTicketClaimed(supabase: SupabaseClient, eData: any) {
     const buyerAddress = eData.buyer.toString();
     const packedTicket = eData.packed_ticket.toString();
 
-    // 1. Find exactly ONE unclaimed ticket matching this description (to handle duplicates safely)
     const { data: tickets } = await supabase
         .from('ticket_purchases')
         .select('id')
@@ -310,7 +312,6 @@ async function handleTicketClaimed(supabase: SupabaseClient, eData: any) {
         .eq('claimed', false)
         .limit(1);
 
-    // 2. Mark it as claimed!
     if (tickets && tickets.length > 0) {
         const { error } = await supabase
             .from('ticket_purchases')

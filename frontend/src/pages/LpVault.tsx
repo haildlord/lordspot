@@ -2,11 +2,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { useAppData } from '../context/AppDataContext';
 import { getAssociatedTokenAddress } from "@solana/spl-token";
-import { PublicKey } from "@solana/web3.js";
 import {
+    DEVNET_LUSDC_MINT,
+    getGlobalStatePda,
+    getDrawingStatePda,
     getLpDrawingStatePda,
     getPerEpochStatePda,
-    getProtocolUsdcVaultAta
+    getProtocolUsdcVaultAta,
+    getLpInfoPda
 } from "../utility/seeds_and_ata.ts";
 
 import * as anchor from "@coral-xyz/anchor";
@@ -20,14 +23,12 @@ export const LpVault = () => {
     const { connected, publicKey, wallet } = useWallet();
     const { connection } = useConnection();
 
-    // ALL REALTIME DATA & TRIGGERS NOW COME FROM CONTEXT!
     const {
         pool_total_cap,
         prize_pool,
         lpInfo,
         activityLogs,
         refreshVaultData,
-        devnet_mock_usdc_mint_address,
         devnet_protocol_programid,
         current_epoch_id,
         isDrawing,
@@ -36,11 +37,15 @@ export const LpVault = () => {
     } = useAppData();
 
     const formattedLpPercent = Number(((lp_target_percent / 1e12) * 100).toFixed(2));
-
     const { balance, fetchBalance } = useUserBalance();
 
-    // 1. Store pending deposits in MICRO USDC (Raw Integer)
     const [globalPendingDepositsMicro, setGlobalPendingDepositsMicro] = useState<number>(0);
+    const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(false);
+    const [depositAmount, setDepositAmount] = useState<number | ''>('');
+    const [txState, setTxState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+
+    // Withdrawal State
+    const [withdrawPercent, setWithdrawPercent] = useState<number>(0);
 
     const fetchGlobalPoolState = useCallback(async () => {
         if (!connection || !devnet_protocol_programid) return;
@@ -50,7 +55,6 @@ export const LpVault = () => {
             const program = new Program(customIdl as anchor.Idl, provider);
             let lpDrawingStatePda = getLpDrawingStatePda(current_epoch_id)[0];
             const drawingState = await program.account.epochIdToLpDrawingState.fetch(lpDrawingStatePda);
-            // Store the raw BN value as a number
             setGlobalPendingDepositsMicro(drawingState.pendingDeposits.toNumber());
         } catch (e) {
             setGlobalPendingDepositsMicro(0);
@@ -68,18 +72,12 @@ export const LpVault = () => {
         fetchBalance();
     }, [lastEpochUpdate, fetchGlobalPoolState, fetchBalance]);
 
-
-    const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(false);
-    const [depositAmount, setDepositAmount] = useState<number | ''>('');
-    const [txState, setTxState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-
-    // 2. DO ALL CAPACITY MATH IN RAW MICRO-USDC (INTEGERS) FIRST
+    // CAPACITY MATH
     const targetCapMicro = pool_total_cap;
     const finalizedPoolMicro = prize_pool;
     const rightNowCapMicro = finalizedPoolMicro + globalPendingDepositsMicro;
     const remainingCapacityMicro = Math.max(0, targetCapMicro - rightNowCapMicro);
 
-    // 3. Convert to Display Values
     const rightNowCap = rightNowCapMicro / 1e6;
     const targetCap = targetCapMicro / 1e6;
     const remainingCapacityDisplay = remainingCapacityMicro / 1e6;
@@ -87,27 +85,46 @@ export const LpVault = () => {
     const fillPercentage = Math.min((rightNowCap / targetCap) * 100, 100);
     const isPoolFull = remainingCapacityMicro <= 0;
     const exceedsCapacity = typeof depositAmount === 'number' && depositAmount > remainingCapacityDisplay;
-    const stats = { expectedApy: 13.86, apy7d: 34.78, houseWinRate: 100.00 };
+
+    // --- THE 3-STATE POSITION LOGIC ---
+    // Extracting values from your TrueLpState
+    const activeShares = lpInfo ? lpInfo.consolidatedShares : 0;
+    const pendingWithdrawalShares = lpInfo ? lpInfo.pendingWithdrawalShares : 0;
+    const pendingWithdrawalEpoch = lpInfo ? lpInfo.pendingWithdrawalEpoch : 0;
+    const claimableUsdcMicro = lpInfo ? lpInfo.claimableUsdc : 0;
+
+    // Convert internal Shares to frontend-friendly USDC estimates (divide by 1e6)
+    const activeUsdcEstimate = activeShares / 1e6;
+    const pendingWithdrawalUsdcEstimate = pendingWithdrawalShares / 1e6;
+
+    // Calculating the underlying shares to burn based on percentage
+    const sharesToBurn = Math.floor(activeShares * (withdrawPercent / 100));
+    const withdrawValueUsdcEstimate = sharesToBurn / 1e6;
+
+    // State Triggers
+    const isPendingCurrentEpoch = pendingWithdrawalShares > 0 && pendingWithdrawalEpoch === current_epoch_id;
+    const isReadyToFinalize = (pendingWithdrawalShares > 0 && pendingWithdrawalEpoch < current_epoch_id) || claimableUsdcMicro > 0;
+
+    // --- ANCHOR METHODS ---
+    const getProgramInstance = () => {
+        const provider = new AnchorProvider(connection, wallet!.adapter as any, AnchorProvider.defaultOptions());
+        const customIdl = { ...IDL, address: devnet_protocol_programid };
+        return new Program(customIdl as anchor.Idl, provider);
+    };
 
     const handleDeposit = async () => {
         if (!connected || !publicKey || !wallet || !devnet_protocol_programid || !depositAmount || isPoolFull || exceedsCapacity) return;
-
         setTxState('loading');
 
         try {
-            const provider = new AnchorProvider(connection, wallet.adapter as any, AnchorProvider.defaultOptions());
-            const customIdl = { ...IDL, address: devnet_protocol_programid };
-            const lordsPotProgram = new Program(customIdl as anchor.Idl, provider);
+            const lordsPotProgram = getProgramInstance();
+            const userUsdcAta = await getAssociatedTokenAddress(DEVNET_LUSDC_MINT, publicKey);
 
-            const userUsdcAta = await getAssociatedTokenAddress(new PublicKey(devnet_mock_usdc_mint_address), publicKey);
-
-            // 4. THE MAGIC FIX: If they clicked "MAX" and the input matches the exact remaining display,
-            // use the RAW INTEGER to bypass JS floating-point dust bugs. Otherwise, use Math.floor.
             let amountInMicroUsdc: BN;
             if (depositAmount === remainingCapacityDisplay) {
-                amountInMicroUsdc = new BN(remainingCapacityMicro); // Exact match! No dust left behind.
+                amountInMicroUsdc = new BN(remainingCapacityMicro);
             } else {
-                amountInMicroUsdc = new BN(Math.floor(depositAmount * 1e6)); // Floor prevents 0.9999 crashing BN
+                amountInMicroUsdc = new BN(Math.floor(depositAmount * 1e6));
             }
 
             const needsConsolidation = lpInfo !== null && lpInfo.rawPendingDepositAmount > 0 && lpInfo.rawLastDepositEpoch < current_epoch_id;
@@ -118,15 +135,18 @@ export const LpVault = () => {
                 .lpDeposit(amountInMicroUsdc)
                 .accounts({
                     signer: publicKey,
+                    usdcMint: DEVNET_LUSDC_MINT,
+                    globalStateAccount: getGlobalStatePda()[0],
+                    drawingStateAccount: getDrawingStatePda(current_epoch_id)[0],
+                    drawingIdToLpDrawingState: getLpDrawingStatePda(current_epoch_id)[0],
+                    lpMintAccount: userUsdcAta,
+                    protocolUsdcVault: getProtocolUsdcVaultAta(),
+                    lpInfoAccount: getLpInfoPda(publicKey)[0],
                     depositEpochState: historicalEpochPda,
                     prevPerEpochState: prevEpochPda,
-                    protocolUsdcVault: getProtocolUsdcVaultAta(),
-                    lpMintAccount: userUsdcAta,
                     tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
                 } as any)
                 .rpc();
-
-            console.log("Deposit successful! Signature:", signature);
 
             setTxState('success');
             setDepositAmount('');
@@ -134,43 +154,106 @@ export const LpVault = () => {
             await fetchBalance();
             await fetchGlobalPoolState();
             setTimeout(() => setTxState('idle'), 3000);
-
         } catch (e: any) {
-            console.error("Deposit Error Details:", e);
-            if (e.message && e.message.includes("already been processed")) {
-                setTxState('success');
-                setDepositAmount('');
-                await refreshVaultData();
-                await fetchBalance();
-                await fetchGlobalPoolState();
-                setTimeout(() => setTxState('idle'), 3000);
-            } else {
-                setTxState('error');
-                setTimeout(() => setTxState('idle'), 3000);
-            }
+            console.error("Deposit Error:", e);
+            setTxState('error');
+            setTimeout(() => setTxState('idle'), 3000);
         }
     };
 
-    const handleClaim = async () => {
-        if (!lpInfo || lpInfo.claimableUsdc <= 0) return;
-        try { console.log("Claiming USDC..."); } catch (e) { console.error("Claim failed", e); }
+    const handleInitiateWithdraw = async () => {
+        if (!connected || !publicKey || sharesToBurn <= 0) return;
+        setTxState('loading');
+
+        try {
+            const lordsPotProgram = getProgramInstance();
+
+            const prevDepositEpochPda = (lpInfo && lpInfo.rawPendingDepositAmount > 0 && lpInfo.rawLastDepositEpoch < current_epoch_id)
+                ? getPerEpochStatePda(lpInfo.rawLastDepositEpoch)[0]
+                : null;
+
+            // FIX APPLIED HERE: Using rawPendingWithdrawalShares
+            const prevWithdrawalEpochPda = (lpInfo && lpInfo.rawPendingWithdrawalShares > 0 && lpInfo.pendingWithdrawalEpoch < current_epoch_id)
+                ? getPerEpochStatePda(lpInfo.pendingWithdrawalEpoch)[0]
+                : null;
+
+            const signature = await lordsPotProgram.methods
+                .lpInitiateWithdraw(new BN(sharesToBurn))
+                .accounts({
+                    signer: publicKey,
+                    globalStateAccount: getGlobalStatePda()[0],
+                    drawingStateAccount: getDrawingStatePda(current_epoch_id)[0],
+                    drawingIdToLpDrawingState: getLpDrawingStatePda(current_epoch_id)[0],
+                    lpInfoAccount: getLpInfoPda(publicKey)[0],
+                    depositEpochState: prevDepositEpochPda,
+                    withdrawalEpochState: prevWithdrawalEpochPda,
+                } as any)
+                .rpc();
+
+            setTxState('success');
+            setWithdrawPercent(0);
+            await refreshVaultData();
+            setTimeout(() => setTxState('idle'), 3000);
+        } catch (e) {
+            console.error("Initiate Withdraw Error:", e);
+            setTxState('error');
+            setTimeout(() => setTxState('idle'), 3000);
+        }
+    };
+
+    const handleFinalizeWithdraw = async () => {
+        if (!connected || !publicKey || !isReadyToFinalize) return;
+        setTxState('loading');
+
+        try {
+            const lordsPotProgram = getProgramInstance();
+            const userUsdcAta = await getAssociatedTokenAddress(DEVNET_LUSDC_MINT, publicKey);
+
+            // FIX APPLIED HERE: Using rawPendingWithdrawalShares
+            const prevWithdrawalEpochPda = (lpInfo && lpInfo.rawPendingWithdrawalShares > 0 && lpInfo.pendingWithdrawalEpoch < current_epoch_id)
+                ? getPerEpochStatePda(lpInfo.pendingWithdrawalEpoch)[0]
+                : null;
+
+            const signature = await lordsPotProgram.methods
+                .lpFinalizeWithdraw()
+                .accounts({
+                    signer: publicKey,
+                    usdcMint: DEVNET_LUSDC_MINT,
+                    globalStateAccount: getGlobalStatePda()[0],
+                    drawingStateAccount: getDrawingStatePda(current_epoch_id)[0],
+                    drawingIdToLpDrawingState: getLpDrawingStatePda(current_epoch_id)[0],
+                    lpInfoAccount: getLpInfoPda(publicKey)[0],
+                    withdrawalEpochState: prevWithdrawalEpochPda,
+                    userUsdcAccount: userUsdcAta,
+                    protocolUsdcVault: getProtocolUsdcVaultAta(),
+                    tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+                } as any)
+                .rpc();
+
+            setTxState('success');
+            await refreshVaultData();
+            await fetchBalance();
+            setTimeout(() => setTxState('idle'), 3000);
+        } catch (e) {
+            console.error("Finalize Withdraw Error:", e);
+            setTxState('error');
+            setTimeout(() => setTxState('idle'), 3000);
+        }
     };
 
     return (
         <div className="relative min-h-[calc(100vh-64px)] md:min-h-[calc(100vh-80px)] pt-4 md:pt-6 pb-12 md:pb-16 px-4 sm:px-6 overflow-hidden bg-[#0a0a0a] text-white">
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-4 md:mb-6">
                 <PulsuatingCountDown />
-
                 <OnGoingEpoch/>
             </div>
-            {/* OVERLAY CONTROLLED BY CONTEXT */}
+
+            {/* OVERLAYS & MODALS */}
             {isDrawing && (
                 <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-md transition-opacity duration-300">
                     <div className="flex flex-col items-center justify-center p-8 bg-[#111] border border-[#D4AF37]/30 rounded-[2rem] shadow-[0_0_40px_rgba(212,175,55,0.15)]">
                         <div className="w-16 h-16 md:w-20 md:h-20 border-4 border-[#D4AF37]/10 border-t-[#D4AF37] rounded-full animate-spin mb-6" />
-                        <h2 className="text-xl md:text-2xl font-black text-[#D4AF37] tracking-[0.2em] uppercase animate-pulse mb-2">
-                            Oracle is Drawing...
-                        </h2>
+                        <h2 className="text-xl md:text-2xl font-black text-[#D4AF37] tracking-[0.2em] uppercase animate-pulse mb-2">Oracle is Drawing...</h2>
                         <p className="text-sm text-slate-400 text-center">Vault interactions are disabled while winners are paid out.</p>
                     </div>
                 </div>
@@ -186,7 +269,7 @@ export const LpVault = () => {
                                     <div className="absolute w-10 h-10 md:w-12 md:h-12 border-4 border-[#D4AF37]/30 border-b-[#D4AF37] rounded-lg animate-[spin_1.5s_reverse_infinite]" />
                                     <div className="w-4 h-4 bg-[#D4AF37] rounded-sm animate-pulse" />
                                 </div>
-                                <p className="text-[#D4AF37] font-bold tracking-[0.2em] text-[10px] md:text-xs animate-pulse">DEPOSITING FUNDS...</p>
+                                <p className="text-[#D4AF37] font-bold tracking-[0.2em] text-[10px] md:text-xs animate-pulse">PROCESSING...</p>
                             </>
                         )}
                         {txState === 'success' && (
@@ -194,7 +277,7 @@ export const LpVault = () => {
                                 <div className="w-16 h-16 md:w-20 md:h-20 bg-green-500/10 rounded-full flex items-center justify-center mb-3 border border-green-500/30">
                                     <svg className="w-8 h-8 md:w-10 md:h-10 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                                 </div>
-                                <p className="text-green-400 font-black tracking-[0.1em] text-sm md:text-base drop-shadow-md">DEPOSIT SUCCESSFUL</p>
+                                <p className="text-green-400 font-black tracking-[0.1em] text-sm md:text-base drop-shadow-md">SUCCESS</p>
                             </div>
                         )}
                         {txState === 'error' && (
@@ -202,7 +285,7 @@ export const LpVault = () => {
                                 <div className="w-16 h-16 md:w-20 md:h-20 bg-red-500/10 rounded-full flex items-center justify-center mb-3 border border-red-500/30">
                                     <svg className="w-8 h-8 md:w-10 md:h-10 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                                 </div>
-                                <p className="text-red-400 font-black tracking-[0.1em] text-sm md:text-base drop-shadow-md">DEPOSIT FAILED</p>
+                                <p className="text-red-400 font-black tracking-[0.1em] text-sm md:text-base drop-shadow-md">FAILED</p>
                             </div>
                         )}
                     </div>
@@ -231,6 +314,7 @@ export const LpVault = () => {
                     </button>
                 </div>
 
+                {/* PRIZE POOL HEADER */}
                 <div className="w-full mb-6 md:mb-8">
                     <h3 className="text-[10px] md:text-xs font-black tracking-[0.15em] text-slate-400 uppercase mb-2 md:mb-3 px-1 flex items-center gap-1.5">Prize Pool</h3>
                     <div className="w-full bg-black/40 backdrop-blur-xl border border-[#D4AF37]/20 shadow-[0_4px_20px_rgba(0,0,0,0.5)] rounded-[1.25rem] md:rounded-[1.5rem] p-3 md:p-5 relative overflow-hidden flex flex-col">
@@ -261,21 +345,6 @@ export const LpVault = () => {
                                 <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/60 to-transparent animate-shimmer" />
                             </div>
                         </div>
-
-                        <div className="grid grid-cols-3 gap-2 md:gap-3">
-                            <div className="bg-[#111] rounded-lg md:rounded-xl p-2 md:p-3 text-center border border-white/5 flex flex-col justify-center items-center">
-                                <div className="flex items-center gap-1 mb-0.5"><p className="text-[7px] md:text-[8px] font-bold text-slate-400 uppercase tracking-widest">Expected APY</p></div>
-                                <p className="text-xs md:text-sm font-black text-[#D4AF37]">{stats.expectedApy}%</p>
-                            </div>
-                            <div className="bg-[#111] rounded-lg md:rounded-xl p-2 md:p-3 text-center border border-white/5 flex flex-col justify-center items-center">
-                                <div className="flex items-center gap-1 mb-0.5"><p className="text-[7px] md:text-[8px] font-bold text-slate-400 uppercase tracking-widest">APY 7d</p></div>
-                                <p className="text-xs md:text-sm font-black text-emerald-400">{stats.apy7d}%</p>
-                            </div>
-                            <div className="bg-[#111] rounded-lg md:rounded-xl p-2 md:p-3 text-center border border-white/5 flex flex-col justify-center items-center">
-                                <div className="flex items-center gap-1 mb-0.5"><p className="text-[7px] md:text-[8px] font-bold text-slate-400 uppercase tracking-widest">House Win 30d</p></div>
-                                <p className="text-xs md:text-sm font-black text-white">{stats.houseWinRate}%</p>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
@@ -290,6 +359,8 @@ export const LpVault = () => {
                     </div>
                 ) : (
                     <div className="w-full flex flex-col gap-6 md:gap-8">
+
+                        {/* THE DEPOSIT SECTION */}
                         <div className="w-full">
                             <h3 className="text-[10px] md:text-xs font-black tracking-[0.15em] text-slate-400 uppercase mb-2 md:mb-3 px-1">Deposit</h3>
                             <div className="w-full bg-[#0d0d0d] border border-[#D4AF37]/30 shadow-[0_8px_30px_rgba(212,175,55,0.1)] rounded-[1.5rem] md:rounded-[2rem] p-6 md:p-8 relative overflow-hidden flex flex-col items-center">
@@ -304,113 +375,148 @@ export const LpVault = () => {
                                 </p>
 
                                 <div className="w-full max-w-[300px] md:max-w-sm relative z-10">
-                                    {txState === 'idle' && (
-                                        <div className="flex flex-col gap-3 md:gap-4">
-
-                                            {/* WRAPPED INPUT WITH MAX BUTTON */}
-                                            <div className={`relative flex items-center bg-[#111] border rounded-xl md:rounded-2xl px-4 py-2.5 md:py-3 transition-colors shadow-inner ${exceedsCapacity ? 'border-red-500/50' : 'border-white/10 focus-within:border-[#D4AF37]/50'}`}>
-                                                <span className="text-[#D4AF37] font-black mr-2 text-base md:text-lg">$</span>
-                                                <input
-                                                    type="number" min="1" max={remainingCapacityDisplay} placeholder={isPoolFull ? "Pool Full" : "0.00"}
-                                                    value={depositAmount} onChange={(e) => setDepositAmount(e.target.value ? Number(e.target.value) : '')}
-                                                    disabled={isPoolFull}
-                                                    className="w-full bg-transparent text-white text-lg md:text-xl font-black focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none disabled:opacity-50 disabled:cursor-not-allowed pr-16"
-                                                />
-                                                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                                                    {!isPoolFull && (
-                                                        <button
-                                                            onClick={() => setDepositAmount(remainingCapacityDisplay)}
-                                                            className="text-[9px] md:text-[10px] font-black text-[#D4AF37] hover:text-white transition-colors bg-[#D4AF37]/10 hover:bg-[#D4AF37]/20 border border-[#D4AF37]/30 px-2 py-1 rounded shadow-sm"
-                                                        >
-                                                            MAX
-                                                        </button>
-                                                    )}
-                                                </div>
+                                    <div className="flex flex-col gap-3 md:gap-4">
+                                        <div className={`relative flex items-center bg-[#111] border rounded-xl md:rounded-2xl px-4 py-2.5 md:py-3 transition-colors shadow-inner ${exceedsCapacity ? 'border-red-500/50' : 'border-white/10 focus-within:border-[#D4AF37]/50'}`}>
+                                            <span className="text-[#D4AF37] font-black mr-2 text-base md:text-lg">$</span>
+                                            <input
+                                                type="number" min="1" max={remainingCapacityDisplay} placeholder={isPoolFull ? "Pool Full" : "0.00"}
+                                                value={depositAmount} onChange={(e) => setDepositAmount(e.target.value ? Number(e.target.value) : '')}
+                                                disabled={isPoolFull || txState === 'loading'}
+                                                className="w-full bg-transparent text-white text-lg md:text-xl font-black focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none disabled:opacity-50 disabled:cursor-not-allowed pr-16"
+                                            />
+                                            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                                                {!isPoolFull && (
+                                                    <button onClick={() => setDepositAmount(remainingCapacityDisplay)} className="text-[9px] md:text-[10px] font-black text-[#D4AF37] hover:text-white transition-colors bg-[#D4AF37]/10 hover:bg-[#D4AF37]/20 border border-[#D4AF37]/30 px-2 py-1 rounded shadow-sm">MAX</button>
+                                                )}
                                             </div>
-
-                                            {exceedsCapacity && (
-                                                <p className="text-[10px] text-red-400 font-bold text-center mt-[-8px]">Max deposit available: ${remainingCapacityDisplay.toLocaleString()}</p>
-                                            )}
-
-                                            <button
-                                                onClick={handleDeposit}
-                                                disabled={!depositAmount || isPoolFull || exceedsCapacity || isDrawing}
-                                                className="relative w-full py-3.5 md:py-4 overflow-hidden group rounded-xl md:rounded-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 shadow-[0_0_20px_rgba(212,175,55,0.25)] disabled:shadow-none"
-                                            >
-                                                <div className={`absolute inset-0 bg-gradient-to-r from-[#B8860B] via-[#FFD700] to-[#B8860B] bg-[length:200%_100%] ${!isPoolFull && !exceedsCapacity ? 'animate-[gradient_2s_linear_infinite]' : ''}`} />
-                                                <span className="relative z-10 text-[10px] md:text-[11px] font-black tracking-[0.25em] text-black uppercase">
-                                                    {isPoolFull ? 'POOL FULL' : exceedsCapacity ? 'EXCEEDS CAPACITY' : 'DEPOSIT FUNDS'}
-                                                </span>
-                                            </button>
-                                            <BalanceDisplay balance={balance} />
                                         </div>
-                                    )}
+                                        {exceedsCapacity && <p className="text-[10px] text-red-400 font-bold text-center mt-[-8px]">Max deposit available: ${remainingCapacityDisplay.toLocaleString()}</p>}
 
-                                    {txState === 'loading' && (
-                                        <div className="w-full py-3.5 md:py-4 bg-[#111] border border-[#D4AF37]/30 rounded-xl md:rounded-2xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(212,175,55,0.1)]">
-                                            <div className="w-4 h-4 md:w-5 md:h-5 border-2 border-[#D4AF37]/20 border-t-[#D4AF37] rounded-full animate-spin" />
-                                            <span className="text-[10px] md:text-xs font-black tracking-widest text-[#D4AF37] uppercase">Confirming...</span>
-                                        </div>
-                                    )}
-
-                                    {txState === 'success' && (
-                                        <div className="w-full py-3.5 md:py-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl md:rounded-2xl flex items-center justify-center gap-2 animate-fade-in shadow-[0_0_20px_rgba(16,185,129,0.15)]">
-                                            <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                                            <span className="text-[10px] md:text-xs font-black tracking-widest text-emerald-400 uppercase">Deposit Successful</span>
-                                        </div>
-                                    )}
-
-                                    {txState === 'error' && (
-                                        <div className="w-full py-3.5 md:py-4 bg-red-500/10 border border-red-500/30 rounded-xl md:rounded-2xl flex items-center justify-center gap-2 animate-fade-in shadow-[0_0_20px_rgba(239,68,68,0.15)]">
-                                            <svg className="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                                            <span className="text-[10px] md:text-xs font-black tracking-widest text-red-400 uppercase">Transaction Failed</span>
-                                        </div>
-                                    )}
+                                        <button onClick={handleDeposit} disabled={!depositAmount || isPoolFull || exceedsCapacity || isDrawing || txState === 'loading'} className="relative w-full py-3.5 md:py-4 overflow-hidden group rounded-xl md:rounded-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 shadow-[0_0_20px_rgba(212,175,55,0.25)] disabled:shadow-none">
+                                            <div className={`absolute inset-0 bg-gradient-to-r from-[#B8860B] via-[#FFD700] to-[#B8860B] bg-[length:200%_100%] ${!isPoolFull && !exceedsCapacity ? 'animate-[gradient_2s_linear_infinite]' : ''}`} />
+                                            <span className="relative z-10 text-[10px] md:text-[11px] font-black tracking-[0.25em] text-black uppercase">{isPoolFull ? 'POOL FULL' : exceedsCapacity ? 'EXCEEDS CAPACITY' : 'DEPOSIT FUNDS'}</span>
+                                        </button>
+                                        <BalanceDisplay balance={balance} />
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
+                        {/* --- THE 3-STATE POSITION SECTION (FULLY ABSTRACTED TO USDC) --- */}
                         <div className="w-full">
                             <h3 className="text-[10px] md:text-xs font-black tracking-[0.15em] text-slate-400 uppercase mb-2 md:mb-3 px-1">Your Position</h3>
+
                             {!lpInfo ? (
-                                <div className="bg-[#111]/50 border border-white/5 rounded-xl md:rounded-2xl p-6 md:p-8 flex flex-col items-center justify-center text-center">
-                                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-white/5 flex items-center justify-center mb-2.5 md:mb-3">
-                                        <svg className="w-4 h-4 md:w-5 md:h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                    </div>
+                                <div className="bg-[#111]/50 border border-white/5 rounded-xl md:rounded-2xl p-6 text-center">
                                     <p className="text-[11px] md:text-xs font-bold text-white mb-1">No Activity Yet</p>
-                                    <p className="text-[8px] md:text-[9px] text-slate-500 max-w-[200px]">Once you deposit, your yield history and earnings will be displayed here.</p>
+                                    <p className="text-[8px] md:text-[9px] text-slate-500">Deposit USDC to start earning yield.</p>
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-                                    <div className="bg-[#111] border border-white/5 rounded-xl p-4 flex flex-col justify-center">
-                                        <p className="text-[8px] md:text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Active Shares</p>
-                                        <p className="text-sm md:text-base font-black text-white">{lpInfo.consolidatedShares.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
-                                    </div>
-                                    <div className="bg-[#111] border border-white/5 rounded-xl p-4 flex flex-col justify-center">
-                                        <p className="text-[8px] md:text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Pending Deposit</p>
-                                        <div className="flex items-baseline gap-2">
-                                            <p className="text-sm md:text-base font-black text-[#D4AF37]">${(lpInfo.lastDepositAmount / 1e6).toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
-                                            {lpInfo.lastDepositAmount > 0 && <span className="text-[9px] text-slate-500">Epoch {lpInfo.lastDepositEpoch}</span>}
+                                <div className="flex flex-col gap-4">
+
+                                    {/* STATE 1: ACTIVE EARNING */}
+                                    <div className="bg-[#111] border border-white/10 rounded-xl md:rounded-2xl p-5 md:p-6 shadow-inner">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <p className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Vault Position</p>
+                                                    <span className="px-1.5 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[8px] font-black uppercase tracking-widest">Earning Yield</span>
+                                                </div>
+                                                <p className="text-xl md:text-2xl font-black text-white">
+                                                    ~ ${activeUsdcEstimate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                </p>
+                                            </div>
+                                            <div className="text-right">
+                                                {lpInfo.lastDepositAmount > 0 && (
+                                                    <p className="text-[8px] md:text-[9px] text-[#D4AF37] bg-[#D4AF37]/10 px-2 py-1 rounded border border-[#D4AF37]/30">
+                                                        + ${(lpInfo.lastDepositAmount / 1e6).toLocaleString()} pending deposit
+                                                    </p>
+                                                )}
+                                            </div>
                                         </div>
+
+                                        {/* WITHDRAWAL SLIDER */}
+                                        {activeShares > 0 && !isPendingCurrentEpoch && (
+                                            <div className="mt-6 pt-5 border-t border-white/5">
+                                                <div className="flex justify-between items-end text-[10px] md:text-xs mb-3 text-slate-300">
+                                                    <span className="font-bold">Select amount to withdraw:</span>
+                                                    <span className="text-[#D4AF37] font-black">{withdrawPercent}%</span>
+                                                </div>
+                                                <input
+                                                    type="range" min="0" max="100" step="5"
+                                                    value={withdrawPercent}
+                                                    onChange={(e) => setWithdrawPercent(Number(e.target.value))}
+                                                    disabled={txState === 'loading' || isDrawing}
+                                                    className="w-full h-2 bg-black rounded-lg appearance-none cursor-pointer accent-[#D4AF37] mb-2"
+                                                />
+                                                <div className="flex justify-between text-[8px] md:text-[9px] text-slate-500 mb-5 px-1 font-medium">
+                                                    <span>0%</span>
+                                                    <span>50%</span>
+                                                    <span>100%</span>
+                                                </div>
+                                                <button
+                                                    onClick={handleInitiateWithdraw}
+                                                    disabled={withdrawPercent === 0 || isDrawing || txState === 'loading'}
+                                                    className="w-full py-3 bg-[#D4AF37]/10 text-[#D4AF37] border border-[#D4AF37]/30 rounded-xl text-[10px] md:text-[11px] font-black tracking-widest uppercase hover:bg-[#D4AF37]/20 disabled:opacity-30 transition-colors shadow-sm"
+                                                >
+                                                    {withdrawPercent > 0
+                                                        ? `Initiate Withdrawal (~$${withdrawValueUsdcEstimate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
+                                                        : 'Initiate Withdrawal'}
+                                                </button>
+                                                <p className="text-center text-[8px] text-slate-500 mt-3 font-medium px-4">
+                                                    *Withdrawals initiated now will be locked until the end of Epoch {current_epoch_id}.
+                                                </p>
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="bg-[#111] border border-white/5 rounded-xl p-4 flex flex-col justify-center">
-                                        <p className="text-[8px] md:text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Pending Withdrawal</p>
-                                        <div className="flex items-baseline gap-2">
-                                            <p className="text-sm md:text-base font-black text-white">{lpInfo.pendingWithdrawalShares > 0 ? `${lpInfo.pendingWithdrawalShares.toLocaleString(undefined, { maximumFractionDigits: 2 })} Shares` : 'None'}</p>
-                                            {lpInfo.pendingWithdrawalShares > 0 && <span className="text-[9px] text-slate-500">Epoch {lpInfo.pendingWithdrawalEpoch}</span>}
+
+                                    {/* STATE 2: PENDING UNLOCK (CURRENT EPOCH) */}
+                                    {isPendingCurrentEpoch && (
+                                        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl md:rounded-2xl p-5 md:p-6 relative overflow-hidden">
+                                            <div className="flex items-center gap-3 mb-2">
+                                                <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                                                <p className="text-[9px] md:text-[10px] font-bold text-amber-500/80 uppercase tracking-widest">Locked Pending Epoch End</p>
+                                            </div>
+                                            <p className="text-xl md:text-2xl font-black text-amber-500">
+                                                ~ ${pendingWithdrawalUsdcEstimate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </p>
+                                            <p className="text-[10px] md:text-xs mt-3 text-amber-500/70 font-medium leading-relaxed bg-black/20 p-3 rounded-lg border border-amber-500/10">
+                                                Your withdrawal request is locked for the duration of <strong className="text-amber-400">Epoch {current_epoch_id}</strong>.
+                                                You can claim your finalized USDC as soon as <strong className="text-amber-400">Epoch {current_epoch_id + 1}</strong> begins.
+                                            </p>
                                         </div>
-                                    </div>
-                                    <div className="bg-[#111] border border-[#D4AF37]/20 rounded-xl p-4 flex flex-col justify-between shadow-[0_0_15px_rgba(212,175,55,0.05)]">
-                                        <div className="mb-2">
-                                            <p className="text-[8px] md:text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Claimable USDC</p>
-                                            <p className="text-sm md:text-base font-black text-emerald-400">${(lpInfo.claimableUsdc / 1e6).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                                    )}
+
+                                    {/* STATE 3: READY TO CLAIM (PAST EPOCH) */}
+                                    {isReadyToFinalize && (
+                                        <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl md:rounded-2xl p-5 md:p-6 shadow-[0_0_20px_rgba(16,185,129,0.15)] relative">
+                                            <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/20 rounded-bl-[100px] blur-xl pointer-events-none" />
+                                            <p className="text-[9px] md:text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-1 relative z-10">Ready to Claim</p>
+
+                                            {claimableUsdcMicro > 0 ? (
+                                                <p className="text-2xl md:text-3xl font-black text-emerald-400 relative z-10 drop-shadow-md">
+                                                    ${(claimableUsdcMicro / 1e6).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                </p>
+                                            ) : (
+                                                <p className="text-xl md:text-2xl font-black text-emerald-400 relative z-10">
+                                                    ~ ${(pendingWithdrawalUsdcEstimate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ready
+                                                </p>
+                                            )}
+
+                                            <button
+                                                onClick={handleFinalizeWithdraw}
+                                                disabled={isDrawing || txState === 'loading'}
+                                                className="relative z-10 w-full mt-5 py-3.5 bg-emerald-500 text-black rounded-xl text-[10px] md:text-[11px] font-black tracking-widest uppercase hover:bg-emerald-400 transition-colors shadow-lg active:scale-95 disabled:opacity-50 disabled:active:scale-100"
+                                            >
+                                                Finalize & Claim USDC
+                                            </button>
                                         </div>
-                                        <button onClick={handleClaim} disabled={lpInfo.claimableUsdc <= 0} className="w-full py-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-lg text-[9px] md:text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500/20 disabled:opacity-30 disabled:hover:bg-emerald-500/10 transition-colors">Claim Funds</button>
-                                    </div>
+                                    )}
                                 </div>
                             )}
                         </div>
 
+                        {/* ACTIVITY LOGS */}
                         <div className="w-full">
                             <h3 className="text-[10px] md:text-xs font-black tracking-[0.15em] text-slate-400 uppercase mb-2 md:mb-3 px-1">Recent Activity</h3>
                             <div className="bg-[#111] border border-white/5 rounded-xl md:rounded-2xl overflow-hidden">
@@ -426,9 +532,11 @@ export const LpVault = () => {
                                                     </span>
                                                     <span className="text-[8px] md:text-[9px] text-slate-500 font-medium">Epoch {log.epoch_id} • {new Date(log.created_at).toLocaleDateString()}</span>
                                                 </div>
-                                                <div className="text-right">
+                                                <div className="text-right flex flex-col items-end">
                                                     <span className="text-sm md:text-base font-black text-white">
-                                                        {log.action_type === 'INITIATE_WITHDRAW' ? `${Number(log.amount).toLocaleString()} Shares` : `$${(Number(log.amount) / 1e6).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+                                                        {log.unit === 'SHARES'
+                                                            ? `~ $${(Number(log.amount) / 1e6).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                                            : `$${(Number(log.amount) / 1e6).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
                                                     </span>
                                                 </div>
                                             </div>
@@ -442,6 +550,7 @@ export const LpVault = () => {
                 )}
             </div>
 
+            {/* HOW IT WORKS MODAL */}
             {isHowItWorksOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in" onClick={() => setIsHowItWorksOpen(false)}>
                     <div className="bg-[#0a0a0a] border border-[#D4AF37]/30 shadow-[0_0_30px_rgba(212,175,55,0.15)] rounded-[1.5rem] md:rounded-[2rem] p-5 md:p-6 max-w-[300px] md:max-w-sm w-full relative" onClick={(e) => e.stopPropagation()}>
@@ -473,7 +582,7 @@ export const LpVault = () => {
                                 <div className="w-5 h-5 md:w-6 md:h-6 shrink-0 bg-[#111] border border-white/10 rounded-full flex items-center justify-center text-[9px] md:text-[10px] font-black text-slate-400">3</div>
                                 <div>
                                     <h4 className="text-[10px] md:text-[11px] font-bold text-white tracking-wide">Total Freedom</h4>
-                                    <p className="text-[7px] md:text-[8px] text-slate-400 mt-0.5">Capture the house edge with the absolute freedom to withdraw your funds at any time.</p>
+                                    <p className="text-[7px] md:text-[8px] text-slate-400 mt-0.5">Capture the house edge with the absolute freedom to withdraw your funds at any time. *(Subject to epoch locks)*</p>
                                 </div>
                             </div>
                         </div>

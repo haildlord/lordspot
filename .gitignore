@@ -49,3 +49,5 @@ Thumbs.db
 runbooks/deployment/signers.*.tx
 
 my_notes.md
+
+phantom_buffer.json

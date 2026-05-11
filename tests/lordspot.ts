@@ -1,7 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import { LordsPot } from "../target/types/lords_pot";
-import { PublicKey } from "@solana/web3.js";
-import * as sb from "@switchboard-xyz/on-demand";
+import { PublicKey, Keypair } from "@solana/web3.js";
 import {
   getDrawingStatePda,
   getGlobalStatePda,
@@ -9,6 +8,12 @@ import {
   getLpInfoPda,
   getPerEpochStatePda, getTicketTrackerPda, getTierPayoutsPda, getUserTicketsPda
 } from "./utils/seeds_and_ata";
+
+// Load the array from your JSON file
+const secretKeyArray = require('../phantom_buffer.json');
+
+// Convert the array into a Uint8Array and generate the Keypair object
+const phantomSigner = Keypair.fromSecretKey(new Uint8Array(secretKeyArray));
 
 describe("lordspot", () => {
 
@@ -52,131 +57,173 @@ describe("lordspot", () => {
       // const tx9 = await program.methods
       //     .universalClose()
       //     .accounts({
-      //       admin: wallet.publicKey,
+      //       admin: phantomSigner.publicKey,
       //       targetPda: getDrawingStatePda(0)[0],     // DrawingState-0
       //       receiver: wallet.publicKey,
-      //     })
+      //     }).signers([phantomSigner])
       //     .rpc();
       //
       // const tx1 = await program.methods
       //     .universalClose()
       //     .accounts({
-      //       admin: wallet.publicKey,
+      //       admin: phantomSigner.publicKey,
       //       targetPda: getGlobalStatePda()[0],     // GlobalState
       //       receiver: wallet.publicKey,
-      //     })
+      //     }).signers([phantomSigner])
       //     .rpc();
       //
       //
       // const tx2 = await program.methods
       //     .universalClose()
       //     .accounts({
-      //       admin: wallet.publicKey,
+      //       admin: phantomSigner.publicKey,
       //       targetPda: getLpDrawingStatePda(0)[0],     // EpochIdToLPDrawingState-0
       //       receiver: wallet.publicKey,
-      //     })
+      //     }).signers([phantomSigner])
       //     .rpc();
       //
       // const tx3 = await program.methods
       //     .universalClose()
       //     .accounts({
-      //       admin: wallet.publicKey,
+      //       admin: phantomSigner.publicKey,
       //       targetPda: getPerEpochStatePda(0)[0], // PerEpochState - 0
       //       receiver: wallet.publicKey,
-      //     })
-      //     .rpc();
-      //
-      // const tx4 = await program.methods
-      //     .universalClose()
-      //     .accounts({
-      //       admin: wallet.publicKey,
-      //       targetPda: getLpInfoPda(new PublicKey("H8Q7CUvPigtSxfd13TKRuFrwdJtc6pJu9BMNhbXF9yAY"))[0], // HpAYk14jYpomivS4F7oXySN81sdoPvTaHtFsPgiK2jzf, H8Q7CUvPigtSxfd13TKRuFrwdJtc6pJu9BMNhbXF9yAY
-      //       receiver: wallet.publicKey,
-      //     })
+      //     }).signers([phantomSigner])
       //     .rpc();
       //
       // const tx5 = await program.methods
       //     .universalClose()
       //     .accounts({
-      //       admin: wallet.publicKey,
+      //       admin: phantomSigner.publicKey,
       //       targetPda: getLpInfoPda(new PublicKey("HpAYk14jYpomivS4F7oXySN81sdoPvTaHtFsPgiK2jzf"))[0], // HpAYk14jYpomivS4F7oXySN81sdoPvTaHtFsPgiK2jzf, H8Q7CUvPigtSxfd13TKRuFrwdJtc6pJu9BMNhbXF9yAY
       //       receiver: wallet.publicKey,
-      //     })
+      //     }).signers([phantomSigner])
       //     .rpc();
       //
       // const tx6 = await program.methods
       //     .universalClose()
       //     .accounts({
-      //       admin: wallet.publicKey,
+      //       admin: phantomSigner.publicKey,
       //       targetPda: getLpDrawingStatePda(1)[0], // EpochIdToLPDrawingState-1
       //       receiver: wallet.publicKey,
-      //     })
+      //     }).signers([phantomSigner])
       //     .rpc();
-      //
+      // //
       // const tx7 = await program.methods
       //     .universalClose()
       //     .accounts({
-      //       admin: wallet.publicKey,
+      //       admin: phantomSigner.publicKey,
       //       targetPda: getDrawingStatePda(1)[0],     // DrawingState-1
       //       receiver: wallet.publicKey,
-      //     })
+      //     }).signers([phantomSigner])
       //     .rpc();
-      //
+      // //
       // const tx8 = await program.methods
       //     .universalClose()
       //     .accounts({
-      //       admin: wallet.publicKey,
+      //       admin: phantomSigner.publicKey,
       //       targetPda: getTicketTrackerPda( 1)[0], // TicketTracker-1
       //       receiver: wallet.publicKey,
-      //     })
+      //     }).signers([phantomSigner])
       //     .rpc();
-      //
-      //  # commit - save - runLordspot
-      //
+
+
+        //  # commit - save - runLordspot
+
       // const tx10 = await program.methods
       //     .universalClose()
       //     .accounts({
-      //       admin: wallet.publicKey,
+      //       admin: phantomSigner.publicKey,
       //       targetPda: getTierPayoutsPda( 1)[0], // TierPayouts-1
       //       receiver: wallet.publicKey,
-      //     })
+      //     }).signers([phantomSigner])
       //     .rpc();
       //
       // const tx11 = await program.methods
       //     .universalClose()
       //     .accounts({
-      //       admin: wallet.publicKey,
+      //       admin: phantomSigner.publicKey,
       //       targetPda: getPerEpochStatePda( 1)[0], // PerEpochState-1
       //       receiver: wallet.publicKey,
-      //     })
+      //     }).signers([phantomSigner])
       //     .rpc();
       //
       // const tx12 = await program.methods
       //     .universalClose()
       //     .accounts({
-      //       admin: wallet.publicKey,
+      //       admin: phantomSigner.publicKey,
       //       targetPda: getDrawingStatePda( 2)[0], // DrawingState-2
       //       receiver: wallet.publicKey,
-      //     })
+      //     }).signers([phantomSigner])
       //     .rpc();
 
       // const tx13 = await program.methods
       //     .universalClose()
       //     .accounts({
-      //       admin: wallet.publicKey,
+      //       admin: phantomSigner.publicKey,
       //       targetPda: getTicketTrackerPda( 2)[0], // TicketTracker-2
       //       receiver: wallet.publicKey,
-      //     })
+      //     }).signers([phantomSigner])
       //     .rpc();
 
       // const tx14 = await program.methods
       //     .universalClose()
       //     .accounts({
-      //       admin: wallet.publicKey,
+      //       admin: phantomSigner.publicKey,
       //       targetPda: getLpDrawingStatePda( 2)[0], // EpochIdToLPDrawingState-2
       //       receiver: wallet.publicKey,
-      //     })
+      //     }).signers([phantomSigner])
       //     .rpc();
+
+
+
+        // # after 2 epoch and start of 3rd epoch
+
+
+        // const tx15 = await program.methods
+        //     .universalClose()
+        //     .accounts({
+        //         admin: phantomSigner.publicKey,
+        //         targetPda: getTierPayoutsPda( 2)[0], // TierPayouts-2
+        //         receiver: wallet.publicKey,
+        //     }).signers([phantomSigner])
+        //     .rpc();
+        //
+        // const tx16 = await program.methods
+        //     .universalClose()
+        //     .accounts({
+        //         admin: phantomSigner.publicKey,
+        //         targetPda: getPerEpochStatePda( 2)[0], // PerEpochState-2
+        //         receiver: wallet.publicKey,
+        //     }).signers([phantomSigner])
+        //     .rpc();
+        //
+        // const tx17 = await program.methods
+        //     .universalClose()
+        //     .accounts({
+        //         admin: phantomSigner.publicKey,
+        //         targetPda: getDrawingStatePda( 3)[0], // DrawingState-3
+        //         receiver: wallet.publicKey,
+        //     }).signers([phantomSigner])
+        //     .rpc();
+        //
+        // const tx18 = await program.methods
+        //     .universalClose()
+        //     .accounts({
+        //         admin: phantomSigner.publicKey,
+        //         targetPda: getTicketTrackerPda( 3)[0], // TicketTracker-3
+        //         receiver: wallet.publicKey,
+        //     }).signers([phantomSigner])
+        //     .rpc();
+        //
+        // const tx19 = await program.methods
+        //     .universalClose()
+        //     .accounts({
+        //         admin: phantomSigner.publicKey,
+        //         targetPda: getLpDrawingStatePda( 3)[0], // EpochIdToLPDrawingState-3
+        //         receiver: wallet.publicKey,
+        //     }).signers([phantomSigner])
+        //     .rpc();
 
 
         let arr = [
@@ -197,10 +244,10 @@ describe("lordspot", () => {
             const tx6 = await program.methods
                 .universalClose()
                 .accounts({
-                    admin: wallet.publicKey,
+                    admin: phantomSigner.publicKey,
                     targetPda: getUserTicketsPda(new PublicKey(arr[i]), 1)[0],
                     receiver: wallet.publicKey,
-                })
+                }).signers([phantomSigner])
                 .rpc();
         }
     } catch (err) {

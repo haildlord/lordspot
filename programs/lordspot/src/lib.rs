@@ -51,12 +51,6 @@ pub mod lords_pot {
         Ok(())
     }
 
-
-    pub fn lp_deposit(ctx : Context<LpDeposit>, amount_to_deposit : u64) -> Result<()> {
-        lp_deposit_handler(ctx, amount_to_deposit)?;
-        Ok(())
-    }
-
     pub fn init_lordspot(ctx:Context<InitializeLordsPot>, now_time : u64) -> Result<()> {
         init_lordspot_handler(ctx, now_time)?;
         Ok(())
@@ -84,6 +78,21 @@ pub mod lords_pot {
 
     pub fn claim_rewards(ctx: Context<ClaimRewards>, _epoch_id: u64, packed_ticket_to_claim: u64) -> Result<()> {
         claim_rewards_handler(ctx,_epoch_id,packed_ticket_to_claim)?;
+        Ok(())
+    }
+
+    pub fn lp_deposit(ctx : Context<LpDeposit>, amount_to_deposit : u64) -> Result<()> {
+        lp_deposit_handler(ctx, amount_to_deposit)?;
+        Ok(())
+    }
+
+    pub fn lp_initiate_withdraw(ctx : Context<InitiateWithdraw>,  amount_in_shares: u64) -> Result<()> {
+        initiate_withdraw_handler(ctx, amount_in_shares)?;
+        Ok(())
+    }
+
+    pub fn lp_finalize_withdraw(ctx : Context<FinalizeWithdraw>) -> Result<()> {
+        finalize_withdraw_handler(ctx)?;
         Ok(())
     }
 

@@ -35,9 +35,24 @@ async function retryCommit(randomness: any, queuePubkey: PublicKey, maxRetries =
 }
 
 // ==========================================
+// GLOBAL LOCK: THUNDERING HERD PROTECTION
+// ==========================================
+let isCrankInProgress = false;
+
+// ==========================================
 // 1. CRANK ENDPOINT
 // ==========================================
 app.post('/crank', async (req, res) => {
+    // 🛡️ STAMPEDE PROTECTION CHECK
+    if (isCrankInProgress) {
+        console.log("STAMPEDE AVERTED: Crank request received, but a crank is already running. Ignoring.");
+        // Return 200 so the frontend overlay cleanly resolves
+        return res.status(200).json({ success: true, message: "Crank already in progress by another user." });
+    }
+
+    // Lock the endpoint
+    isCrankInProgress = true;
+
     try {
         const { programId, sbProgramId, sbQueuePubkey, sbRandomAccount } = req.body;
 
@@ -178,6 +193,10 @@ app.post('/crank', async (req, res) => {
     } catch (error: any) {
         console.error("Crank Server Error:", error);
         return res.status(500).json({ success: false, error: error.message });
+    } finally {
+        // 🛡️ CRITICAL: Always release the lock when the process finishes, whether it succeeds or fails!
+        isCrankInProgress = false;
+        console.log("Crank lock released.");
     }
 });
 

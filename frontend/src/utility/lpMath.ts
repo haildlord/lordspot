@@ -1,6 +1,6 @@
 import { PublicKey } from "@solana/web3.js";
 import { Program } from "@coral-xyz/anchor";
-import {getLpInfoPda, getPerEpochStatePda} from "../utility/seeds_and_ata.ts";
+import { getLpInfoPda, getPerEpochStatePda } from "../utility/seeds_and_ata.ts";
 
 const PRECISE_UNIT = 1_000_000_000_000;
 
@@ -15,6 +15,9 @@ export interface TrueLpState {
 
     rawPendingDepositAmount: number;
     rawLastDepositEpoch: number;
+
+    // ADDED: So Anchor can bypass the UI abstraction
+    rawPendingWithdrawalShares: number;
 }
 
 export const calculateTrueLpState = async (
@@ -41,7 +44,8 @@ export const calculateTrueLpState = async (
     let displayPendingDepositAmount = rawPendingDepositAmount;
     const lastDepositEpoch = rawLastDepositEpoch;
 
-    let displayPendingWithdrawalShares = rawLpInfo.withdrawalInfo.amountInShares.toNumber();
+    const rawPendingWithdrawalShares = rawLpInfo.withdrawalInfo.amountInShares.toNumber();
+    let displayPendingWithdrawalShares = rawPendingWithdrawalShares;
     const pendingWithdrawalEpoch = rawLpInfo.withdrawalInfo.epochId.toNumber();
 
     if (displayPendingDepositAmount > 0 && lastDepositEpoch < currentEpochId) {
@@ -86,5 +90,7 @@ export const calculateTrueLpState = async (
         lastDepositEpoch: lastDepositEpoch,
         rawPendingDepositAmount: rawPendingDepositAmount,
         rawLastDepositEpoch: rawLastDepositEpoch,
+        // ADDED: Passed the raw data directly through for Anchor
+        rawPendingWithdrawalShares: rawPendingWithdrawalShares,
     };
 };

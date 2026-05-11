@@ -6,7 +6,6 @@ use crate::utility::main::*;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use crate::event::{GlobalConfigInitialized};
-// ! in this page we have used ADMIN_PUBKEY when deploying use : DEVNET_ADMIN_PUBKEY
 
 pub fn init_handler(
     ctx: Context<Initialize>,

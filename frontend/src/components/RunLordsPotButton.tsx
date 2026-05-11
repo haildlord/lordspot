@@ -3,9 +3,8 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useAppData } from '../context/AppDataContext';
 
 export const RunLordsPotButton = () => {
-    // We only need the wallet to ensure they are connected to click the button.
     const { connected } = useWallet();
-    const { refreshVaultData, next_draw_at, devnet_protocol_programid,  switchboard_random_account, devnet_swtichboard_programid, devnet_swtichboard_queue, isDrawing} = useAppData();
+    const { refreshVaultData, next_draw_at, devnet_protocol_programid, switchboard_random_account, devnet_swtichboard_programid, devnet_swtichboard_queue, isDrawing } = useAppData();
 
     const render_post_server_link = import.meta.env.VITE_RENDER_POST_SERVER_LINK;
 
@@ -14,14 +13,20 @@ export const RunLordsPotButton = () => {
     const [errorMessage, setErrorMessage] = useState<string>('');
     const isCranking = useRef(false);
 
+    // NEW: Ref to prevent the auto-crank from firing 100 times in a loop
+    const hasAutoCranked = useRef(false);
+
     // ====================================================================
-    // TIME LOCK LOGIC (Remains exactly the same!)
+    // TIME LOCK LOGIC
     // ====================================================================
     const [isDrawTimeReached, setIsDrawTimeReached] = useState(false);
     const [timeRemainingStr, setTimeRemainingStr] = useState('');
 
     useEffect(() => {
         if (!next_draw_at) return;
+
+        // Reset the auto-crank flag whenever a NEW epoch starts (next_draw_at changes)
+        hasAutoCranked.current = false;
 
         const checkTime = () => {
             const drawTimeMs = new Date(next_draw_at).getTime();
@@ -33,7 +38,6 @@ export const RunLordsPotButton = () => {
                 setTimeRemainingStr('');
             } else {
                 setIsDrawTimeReached(false);
-                // Format the remaining time for the locked button
                 const hours = Math.floor(diff / (1000 * 60 * 60)).toString().padStart(2, '0');
                 const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
                 const secs = Math.floor((diff % (1000 * 60)) / 1000).toString().padStart(2, '0');
@@ -41,25 +45,22 @@ export const RunLordsPotButton = () => {
             }
         };
 
-        checkTime(); // Run immediately
-        const interval = setInterval(checkTime, 1000); // Check every second
+        checkTime();
+        const interval = setInterval(checkTime, 1000);
         return () => clearInterval(interval);
     }, [next_draw_at]);
 
     // ====================================================================
-    // NEW RELAYER CRANK HANDLER
+    // RELAYER CRANK HANDLER
     // ====================================================================
     const handleRunLordsPot = async () => {
-        if (isCranking.current || !connected || !isDrawTimeReached) return;
+        if (isCranking.current || !isDrawTimeReached) return;
 
         isCranking.current = true;
         setErrorMessage('');
-
-        // We set it straight to running, as the backend handles the 3 phases securely
         setCrankState('running');
 
         try {
-            // Send the request to your secure backend API via Vite proxy
             const response = await fetch(`${render_post_server_link}/crank`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -94,9 +95,23 @@ export const RunLordsPotButton = () => {
             setTimeout(() => {
                 setCrankState('idle');
                 isCranking.current = false;
+                // If it fails, we allow them to click the button to try again manually
+                hasAutoCranked.current = false;
             }, 3001);
         }
     };
+
+    // ====================================================================
+    // NEW: AUTO-TRIGGER EFFECT
+    // ====================================================================
+    useEffect(() => {
+        // If the time is 0, it hasn't auto-cranked yet, we aren't already drawing, and the user is connected
+        if (isDrawTimeReached && !hasAutoCranked.current && !isDrawing && crankState === 'idle' && connected) {
+            console.log("Auto-triggering LordsPot Crank!");
+            hasAutoCranked.current = true; // Lock it so it doesn't fire repeatedly
+            handleRunLordsPot();
+        }
+    }, [isDrawTimeReached, isDrawing, crankState, connected]);
 
     return (
         <div className="w-full flex flex-col items-center">
@@ -148,7 +163,7 @@ export const RunLordsPotButton = () => {
             {/* BUTTON ITSELF WITH TIMELOCK */}
             <button
                 onClick={handleRunLordsPot}
-                disabled={!connected || crankState !== 'idle'} // ! add isDrawing & !isDrawTimeReached
+                disabled={!connected || crankState !== 'idle' || isDrawing || !isDrawTimeReached}
                 className={`relative w-full py-4 overflow-hidden group rounded-2xl transition-all shadow-[0_0_20px_rgba(212,175,55,0.15)] active:scale-95 z-20 ${!isDrawTimeReached ? 'max-w-[280px] opacity-60 cursor-not-allowed' : 'max-w-[200px] hover:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed'}`}
             >
                 <div className={`absolute inset-0 bg-gradient-to-r from-[#B8860B] via-[#FFD700] to-[#B8860B] bg-[length:200%_100%] ${isDrawTimeReached ? 'animate-[gradient_2s_linear_infinite]' : ''}`} />
