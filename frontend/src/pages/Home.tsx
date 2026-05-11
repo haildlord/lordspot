@@ -8,6 +8,7 @@ import {OnGoingEpoch} from "../components/OnGoingEpoch.tsx";
 export const Home = () => {
     // 1. Get isDrawing directly from context
     const { pool_total_cap, ticket_price, isGlobalLoading, isDrawing } = useAppData();
+    console.log(isDrawing);
     const price = isGlobalLoading ? "..." : ticket_price / 1e6;
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
