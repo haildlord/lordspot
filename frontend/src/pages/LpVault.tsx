@@ -13,11 +13,11 @@ import * as anchor from "@coral-xyz/anchor";
 import { Program, AnchorProvider, BN } from '@coral-xyz/anchor';
 import IDL from '../idl/lords_pot.json';
 import { useUserBalance, BalanceDisplay } from '../components/UsersLusdcBalanceFetcher';
-import {PulsuatingCountDown} from "../components/PulsuatingCountDown.tsx";
-import {OnGoingEpoch} from "../components/OnGoingEpoch.tsx";
+import { PulsuatingCountDown } from "../components/PulsuatingCountDown.tsx";
+import { OnGoingEpoch } from "../components/OnGoingEpoch.tsx";
 
 export const LpVault = () => {
-    const { connected, publicKey, wallet } = useWallet(); // Removed sendTransaction since Anchor handles it!
+    const { connected, publicKey, wallet } = useWallet();
     const { connection } = useConnection();
 
     // ALL REALTIME DATA & TRIGGERS NOW COME FROM CONTEXT!
@@ -26,18 +26,21 @@ export const LpVault = () => {
         prize_pool,
         lpInfo,
         activityLogs,
-        refreshVaultData, // Automatically fetches LP Info via the Context interval!
+        refreshVaultData,
         devnet_mock_usdc_mint_address,
         devnet_protocol_programid,
         current_epoch_id,
         isDrawing,
         lp_target_percent,
-        lastEpochUpdate // We can watch this to refresh global pending deposits!
+        lastEpochUpdate
     } = useAppData();
 
     const formattedLpPercent = Number(((lp_target_percent / 1e12) * 100).toFixed(2));
 
     const { balance, fetchBalance } = useUserBalance();
+
+    // 1. Store pending deposits in MICRO USDC (Raw Integer)
+    const [globalPendingDepositsMicro, setGlobalPendingDepositsMicro] = useState<number>(0);
 
     const fetchGlobalPoolState = useCallback(async () => {
         if (!connection || !devnet_protocol_programid) return;
@@ -47,20 +50,19 @@ export const LpVault = () => {
             const program = new Program(customIdl as anchor.Idl, provider);
             let lpDrawingStatePda = getLpDrawingStatePda(current_epoch_id)[0];
             const drawingState = await program.account.epochIdToLpDrawingState.fetch(lpDrawingStatePda);
-            setGlobalPendingDeposits(drawingState.pendingDeposits.toNumber() / 1e6);
+            // Store the raw BN value as a number
+            setGlobalPendingDepositsMicro(drawingState.pendingDeposits.toNumber());
         } catch (e) {
-            setGlobalPendingDeposits(0);
+            setGlobalPendingDepositsMicro(0);
         }
     }, [connection, devnet_protocol_programid, current_epoch_id, wallet]);
 
-    // Refresh pending deposits dynamically
     useEffect(() => {
         fetchGlobalPoolState();
         const intervalId = setInterval(fetchGlobalPoolState, 10000);
         return () => clearInterval(intervalId);
     }, [fetchGlobalPoolState]);
 
-    // Force a pool refresh when the epoch rolls over via Context
     useEffect(() => {
         fetchGlobalPoolState();
         fetchBalance();
@@ -70,16 +72,21 @@ export const LpVault = () => {
     const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(false);
     const [depositAmount, setDepositAmount] = useState<number | ''>('');
     const [txState, setTxState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-    const [globalPendingDeposits, setGlobalPendingDeposits] = useState<number>(0);
 
-    const targetCap = pool_total_cap / 1e6;
-    const finalizedPool = prize_pool / 1e6;
-    const rightNowCap = finalizedPool + globalPendingDeposits;
+    // 2. DO ALL CAPACITY MATH IN RAW MICRO-USDC (INTEGERS) FIRST
+    const targetCapMicro = pool_total_cap;
+    const finalizedPoolMicro = prize_pool;
+    const rightNowCapMicro = finalizedPoolMicro + globalPendingDepositsMicro;
+    const remainingCapacityMicro = Math.max(0, targetCapMicro - rightNowCapMicro);
+
+    // 3. Convert to Display Values
+    const rightNowCap = rightNowCapMicro / 1e6;
+    const targetCap = targetCapMicro / 1e6;
+    const remainingCapacityDisplay = remainingCapacityMicro / 1e6;
 
     const fillPercentage = Math.min((rightNowCap / targetCap) * 100, 100);
-    const remainingCapacity = Math.max(0, targetCap - rightNowCap);
-    const isPoolFull = remainingCapacity <= 0;
-    const exceedsCapacity = typeof depositAmount === 'number' && depositAmount > remainingCapacity;
+    const isPoolFull = remainingCapacityMicro <= 0;
+    const exceedsCapacity = typeof depositAmount === 'number' && depositAmount > remainingCapacityDisplay;
     const stats = { expectedApy: 13.86, apy7d: 34.78, houseWinRate: 100.00 };
 
     const handleDeposit = async () => {
@@ -93,13 +100,20 @@ export const LpVault = () => {
             const lordsPotProgram = new Program(customIdl as anchor.Idl, provider);
 
             const userUsdcAta = await getAssociatedTokenAddress(new PublicKey(devnet_mock_usdc_mint_address), publicKey);
-            const amountInMicroUsdc = new BN(depositAmount * 1e6);
+
+            // 4. THE MAGIC FIX: If they clicked "MAX" and the input matches the exact remaining display,
+            // use the RAW INTEGER to bypass JS floating-point dust bugs. Otherwise, use Math.floor.
+            let amountInMicroUsdc: BN;
+            if (depositAmount === remainingCapacityDisplay) {
+                amountInMicroUsdc = new BN(remainingCapacityMicro); // Exact match! No dust left behind.
+            } else {
+                amountInMicroUsdc = new BN(Math.floor(depositAmount * 1e6)); // Floor prevents 0.9999 crashing BN
+            }
 
             const needsConsolidation = lpInfo !== null && lpInfo.rawPendingDepositAmount > 0 && lpInfo.rawLastDepositEpoch < current_epoch_id;
             const historicalEpochPda = needsConsolidation ? getPerEpochStatePda(lpInfo.rawLastDepositEpoch)[0] : null;
             const prevEpochPda = current_epoch_id > 0 ? getPerEpochStatePda(current_epoch_id - 1)[0] : null;
 
-            // CLEAN, SINGLE ANCHOR NATIVE CALL
             const signature = await lordsPotProgram.methods
                 .lpDeposit(amountInMicroUsdc)
                 .accounts({
@@ -110,7 +124,7 @@ export const LpVault = () => {
                     lpMintAccount: userUsdcAta,
                     tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
                 } as any)
-                .rpc(); // .rpc() builds, signs, sends, and waits for confirmation automatically!
+                .rpc();
 
             console.log("Deposit successful! Signature:", signature);
 
@@ -227,23 +241,23 @@ export const LpVault = () => {
                                 <p className="text-[10px] md:text-xs font-bold text-slate-300">
                                     Total Vault <span className="text-white font-black">${rightNowCap.toLocaleString()}</span>
                                 </p>
-                                {globalPendingDeposits > 0 && (
+                                {globalPendingDepositsMicro > 0 && (
                                     <p className="text-[8px] md:text-[9px] text-[#D4AF37] font-medium mt-0.5">
-                                        Includes ${globalPendingDeposits.toLocaleString()} pending this epoch
+                                        Includes ${(globalPendingDepositsMicro / 1e6).toLocaleString()} pending this epoch
                                     </p>
                                 )}
                             </div>
                             <p className="text-[9px] md:text-[10px] font-bold text-slate-500 text-right">
                                 Cap: ${targetCap.toLocaleString()}
                                 <br/>
-                                <span className={remainingCapacity <= 0 ? "text-red-400" : "text-emerald-400"}>
-                                ${remainingCapacity.toLocaleString()} Left
+                                <span className={remainingCapacityDisplay <= 0 ? "text-red-400" : "text-emerald-400"}>
+                                ${remainingCapacityDisplay.toLocaleString()} Left
                                 </span>
                             </p>
                         </div>
 
                         <div className="w-full h-1.5 md:h-2 bg-[#050505] rounded-full overflow-hidden border border-white/5 mb-4 md:mb-5 relative shadow-inner">
-                            <div className={`h-full relative overflow-hidden transition-all duration-500 ${remainingCapacity > 0 ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]'}`} style={{ width: `${fillPercentage}%` }}>
+                            <div className={`h-full relative overflow-hidden transition-all duration-500 ${remainingCapacityDisplay > 0 ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]'}`} style={{ width: `${fillPercentage}%` }}>
                                 <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/60 to-transparent animate-shimmer" />
                             </div>
                         </div>
@@ -286,25 +300,36 @@ export const LpVault = () => {
                                 </div>
 
                                 <p className="text-[10px] md:text-xs font-bold text-slate-300 tracking-wide mb-6 relative z-10 text-center">
-                                    Fund the treasury and earn a strict <span className="text-[#D4AF37] font-black text-sm md:text-base">20%</span> house edge on every ticket sold.
+                                    Fund the treasury and earn a strict <span className="text-[#D4AF37] font-black text-sm md:text-base">{formattedLpPercent}%</span> house edge on every ticket sold.
                                 </p>
 
                                 <div className="w-full max-w-[300px] md:max-w-sm relative z-10">
                                     {txState === 'idle' && (
                                         <div className="flex flex-col gap-3 md:gap-4">
-                                            <div className={`flex items-center bg-[#111] border rounded-xl md:rounded-2xl px-4 py-2.5 md:py-3 transition-colors shadow-inner ${exceedsCapacity ? 'border-red-500/50' : 'border-white/10 focus-within:border-[#D4AF37]/50'}`}>
+
+                                            {/* WRAPPED INPUT WITH MAX BUTTON */}
+                                            <div className={`relative flex items-center bg-[#111] border rounded-xl md:rounded-2xl px-4 py-2.5 md:py-3 transition-colors shadow-inner ${exceedsCapacity ? 'border-red-500/50' : 'border-white/10 focus-within:border-[#D4AF37]/50'}`}>
                                                 <span className="text-[#D4AF37] font-black mr-2 text-base md:text-lg">$</span>
                                                 <input
-                                                    type="number" min="1" max={remainingCapacity} placeholder={isPoolFull ? "Pool Full" : "0.00"}
+                                                    type="number" min="1" max={remainingCapacityDisplay} placeholder={isPoolFull ? "Pool Full" : "0.00"}
                                                     value={depositAmount} onChange={(e) => setDepositAmount(e.target.value ? Number(e.target.value) : '')}
                                                     disabled={isPoolFull}
-                                                    className="w-full bg-transparent text-white text-lg md:text-xl font-black focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    className="w-full bg-transparent text-white text-lg md:text-xl font-black focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none disabled:opacity-50 disabled:cursor-not-allowed pr-16"
                                                 />
-                                                <span className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-widest">USDC</span>
+                                                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                                                    {!isPoolFull && (
+                                                        <button
+                                                            onClick={() => setDepositAmount(remainingCapacityDisplay)}
+                                                            className="text-[9px] md:text-[10px] font-black text-[#D4AF37] hover:text-white transition-colors bg-[#D4AF37]/10 hover:bg-[#D4AF37]/20 border border-[#D4AF37]/30 px-2 py-1 rounded shadow-sm"
+                                                        >
+                                                            MAX
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
 
                                             {exceedsCapacity && (
-                                                <p className="text-[10px] text-red-400 font-bold text-center mt-[-8px]">Max deposit available: ${remainingCapacity.toLocaleString()}</p>
+                                                <p className="text-[10px] text-red-400 font-bold text-center mt-[-8px]">Max deposit available: ${remainingCapacityDisplay.toLocaleString()}</p>
                                             )}
 
                                             <button
@@ -441,7 +466,7 @@ export const LpVault = () => {
                                 <div className="w-5 h-5 md:w-6 md:h-6 shrink-0 bg-[#111] border border-white/10 rounded-full flex items-center justify-center text-[9px] md:text-[10px] font-black text-slate-400">2</div>
                                 <div>
                                     <h4 className="text-[10px] md:text-[11px] font-bold text-white tracking-wide">Earn fees instantly</h4>
-                                    <p className="text-[7px] md:text-[8px] text-slate-400 mt-0.5">A growing jackpot drives ticket sales. You earn a proportional slice of the 20% edge generated.</p>
+                                    <p className="text-[7px] md:text-[8px] text-slate-400 mt-0.5">A growing jackpot drives ticket sales. You earn a proportional slice of the {formattedLpPercent}% edge generated.</p>
                                 </div>
                             </div>
                             <div className="flex gap-2.5 md:gap-3 items-start">
