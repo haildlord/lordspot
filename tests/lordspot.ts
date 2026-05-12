@@ -29,7 +29,7 @@ describe("lordspot", () => {
 
 
 
-  it.only("Fetches the current state of the PDA", async () => {
+  it("Fetches the current state of the PDA", async () => {
     console.log("🔍 Running Fetch Test...");
     try {
       const tx = await program.methods
@@ -60,13 +60,13 @@ describe("lordspot", () => {
 
 
 
-  it("Deletes the Global State PDA (Universal Close)", async () => {
+  it.only("Deletes the Global State PDA (Universal Close)", async () => {
 
     console.log("🧹 Wiping Global State PDA...");
 
     try {
 
-        let ongoing_epoch = 3;
+        let ongoing_epoch = 8;
 
         // # Lpinfo PDA
 
