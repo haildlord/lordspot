@@ -66,7 +66,7 @@ describe("lordspot", () => {
 
     try {
 
-        let ongoing_epoch = 1;
+        let ongoing_epoch = 3;
 
         // # Lpinfo PDA
 
@@ -158,7 +158,7 @@ describe("lordspot", () => {
             // ["9Z88MBc5HfhKM9zDW3Rfv9f8D6AK648hCS33ava6Dfp3", 1], // unnati
             // ["HpAYk14jYpomivS4F7oXySN81sdoPvTaHtFsPgiK2jzf", 1], // me
             // ["4MXuJrbN8X93oncAvTbhn3rDp11xy9DmyVkD7RrszeP5", 1], // ujjawal
-            //     ["BMxDCNpDDepd1TCfV5ECwmsGnYMY7r1j6yGcupPYDFdo", 3], // milan
+            // ["BMxDCNpDDepd1TCfV5ECwmsGnYMY7r1j6yGcupPYDFdo", 3], // milan
             // ["9Z88MBc5HfhKM9zDW3Rfv9f8D6AK648hCS33ava6Dfp3", 3], // unnati
             // ["HpAYk14jYpomivS4F7oXySN81sdoPvTaHtFsPgiK2jzf", 3], // me
             // ["4MXuJrbN8X93oncAvTbhn3rDp11xy9DmyVkD7RrszeP5", 3], // ujjawal,

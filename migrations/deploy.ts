@@ -111,7 +111,7 @@ module.exports = async function (provider: anchor.AnchorProvider) {
             25, // special_ball_hard_cap: 25 Lord balls
             new anchor.BN(0), // protocol_fee: 0% (Devs take no fee)
             new anchor.BN(0), // protocol_fee_threshold: 0
-            new anchor.BN(600) // ! when deploying change : drawing_duration: 1 Day (86400 seconds)
+            new anchor.BN(90) // ! when deploying change : drawing_duration: 1 Day (86400 seconds)
         )
         .accounts({
             tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,

@@ -12,8 +12,6 @@ export const RunLordsPotButton = () => {
     const [crankState, setCrankState] = useState<string>('idle');
     const [errorMessage, setErrorMessage] = useState<string>('');
     const isCranking = useRef(false);
-
-    // NEW: Ref to prevent the auto-crank from firing 100 times in a loop
     const hasAutoCranked = useRef(false);
 
     // ====================================================================
@@ -25,7 +23,7 @@ export const RunLordsPotButton = () => {
     useEffect(() => {
         if (!next_draw_at) return;
 
-        // Reset the auto-crank flag whenever a NEW epoch starts (next_draw_at changes)
+        // Reset the auto-crank flag whenever a NEW epoch starts
         hasAutoCranked.current = false;
 
         const checkTime = () => {
@@ -62,7 +60,6 @@ export const RunLordsPotButton = () => {
 
         try {
             console.log("🚀 Frontend calling Relayer at:", render_post_server_link);
-            console.log("📦 Payload:", { programId: devnet_protocol_programid, sbProgramId: devnet_swtichboard_programid, sbQueuePubkey: devnet_swtichboard_queue, sbRandomAccount: switchboard_random_account });
 
             const response = await fetch(`${render_post_server_link}/crank`, {
                 method: 'POST',
@@ -81,15 +78,22 @@ export const RunLordsPotButton = () => {
                 throw new Error(data.error || "Backend Relayer Failed");
             }
 
-            console.log("✅ Success! LordsPot Run Complete. Sig:", data.txSignature);
+            // [NEW ARCHITECTURE]: Handle graceful bounce if another PC is doing the work
+            if (data.message === "Crank in progress." || data.message === "Cooldown active.") {
+                console.log(`🛡️ Relayer response: ${data.message} Another user is cranking. Waiting for WebSocket sync.`);
+                setCrankState('idle');
+                isCranking.current = false;
+                return; // Exit silently, let Supabase update the UI when the other PC finishes
+            }
 
+            console.log("✅ Success! LordsPot Run Complete. Sig:", data.txSignature);
             setCrankState('success');
             refreshVaultData();
 
             setTimeout(() => {
                 setCrankState('idle');
                 isCranking.current = false;
-                window.location.reload(); // Hard refresh to sync UI
+                window.location.reload();
             }, 3000);
 
         } catch (error: any) {
@@ -99,20 +103,25 @@ export const RunLordsPotButton = () => {
             setTimeout(() => {
                 setCrankState('idle');
                 isCranking.current = false;
-                hasAutoCranked.current = false;
+                hasAutoCranked.current = false; // Allow manual retry
             }, 3001);
         }
     };
 
     // ====================================================================
-    // NEW: AUTO-TRIGGER EFFECT
+    // [NEW ARCHITECTURE]: THE JITTER EFFECT
     // ====================================================================
     useEffect(() => {
-        // If the time is 0, it hasn't auto-cranked yet, we aren't already drawing, and the user is connected
         if (isDrawTimeReached && !hasAutoCranked.current && !isDrawing && crankState === 'idle' && connected) {
-            console.log("Auto-triggering LordsPot Crank!");
-            hasAutoCranked.current = true; // Lock it so it doesn't fire repeatedly
-            handleRunLordsPot();
+            hasAutoCranked.current = true; // Immediately lock to prevent double firing locally
+
+            // Generate a random delay between 0 and 4 seconds
+            const jitterDelayMs = Math.floor(Math.random() * 4000);
+            console.log(`⏳ Applying distributed jitter: Waiting ${jitterDelayMs}ms before triggering auto-crank...`);
+
+            setTimeout(() => {
+                handleRunLordsPot();
+            }, jitterDelayMs);
         }
     }, [isDrawTimeReached, isDrawing, crankState, connected]);
 
