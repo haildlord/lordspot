@@ -99,7 +99,7 @@ pub mod lords_pot {
 
 
 
-    // ! remove this function when deploying
+    // ! remove this function when deploying -- so ignore cuzz only for testing purpose
     pub fn universal_close(ctx: Context<UniversalClose>) -> Result<()> {
         let target = &ctx.accounts.target_pda;
         let receiver = &ctx.accounts.receiver;
@@ -133,6 +133,11 @@ pub mod lords_pot {
         /// The account that will receive the reclaimed rent lamports
         #[account(mut)]
         pub receiver: SystemAccount<'info>,
+    }
+
+    pub fn change_drawing_duration(ctx : Context<ChangeDrawingTime>, drawing_duration: u64) -> Result<()> {
+        change_drawing_time_handler(ctx, drawing_duration)?;
+        Ok(())
     }
 
 }

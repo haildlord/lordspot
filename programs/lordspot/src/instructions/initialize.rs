@@ -114,6 +114,14 @@ pub fn init_lordspot_handler(ctx: Context<InitializeLordsPot>, init_drawing_time
     Ok(())
 }
 
+pub fn change_drawing_time_handler(ctx: Context<ChangeDrawingTime>, new_drawing_time: u64) -> Result<()> {
+
+    let global = &mut ctx.accounts.global_state_account;
+    global.drawing_duration = new_drawing_time;
+
+    Ok(())
+}
+
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(
@@ -241,4 +249,21 @@ pub struct InitializeLordsPot<'info> {
     pub ticket_tracker: Account<'info, TicketTracker>,
 
     pub system_program : Program<'info, System>,
+}
+
+// ! this is only for testing purposes -- so need ot remove once deploying
+#[derive(Accounts)]
+pub struct ChangeDrawingTime<'info> {
+    #[account(
+        mut,
+        address = ADMIN_PUBKEY @ LordspotError::InvalidOwner
+    )]
+    pub signer: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [SEED_GLOBAL],
+        bump = global_state_account.bump,
+    )]
+    pub global_state_account: Account<'info, GlobalState>,
 }

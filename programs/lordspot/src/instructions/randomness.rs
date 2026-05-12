@@ -103,6 +103,8 @@ pub fn save_random_num_handler(ctx: Context<SaveRandomNum>, use_known_winning_ti
     ctx.accounts.next_drawing_state_account.bump = ctx.bumps.next_drawing_state_account;
     ctx.accounts.next_ticket_tracker.bump = ctx.bumps.next_ticket_tracker;
 
+    ctx.accounts.next_drawing_state_account.drawing_time = clock.unix_timestamp as u64 + global.drawing_duration;
+
 
     msg!("🎰 Drawing Finalized for Epoch: {}", global.current_epoch_id);
     msg!("Packed Winning Ticket: {}", drawing.winning_ticket);
@@ -177,6 +179,8 @@ pub fn run_lordspot_handler(ctx: Context<RunLordspot>) -> Result<()> {
         total_user_payout,
         0,
     )?;
+
+    ctx.accounts.next_drawing_state_account.prize_pool = new_lp_value;
 
     let clock = Clock::get()?;
     let time_now = clock.unix_timestamp as u64;
@@ -293,6 +297,13 @@ pub struct RunLordspot<'info> {
         bump = ticket_tracker.bump,
     )]
     pub ticket_tracker: Account<'info, TicketTracker>,
+
+    #[account(
+        mut,
+        seeds = [SEED_DRAWING_STATE, (global_state_account.current_epoch_id + 1).to_le_bytes().as_ref()],
+        bump
+    )]
+    pub next_drawing_state_account: Account<'info, DrawingState>,
 
     #[account(
         init_if_needed, // ! should be init when deploying

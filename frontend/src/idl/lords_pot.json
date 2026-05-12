@@ -196,6 +196,66 @@
       ]
     },
     {
+      "name": "change_drawing_duration",
+      "discriminator": [
+        95,
+        65,
+        72,
+        179,
+        245,
+        96,
+        239,
+        88
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true,
+          "address": "HpAYk14jYpomivS4F7oXySN81sdoPvTaHtFsPgiK2jzf"
+        },
+        {
+          "name": "global_state_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101,
+                  95,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "drawing_duration",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "claim_rewards",
       "discriminator": [
         4,
@@ -2225,6 +2285,10 @@
               }
             ]
           }
+        },
+        {
+          "name": "next_drawing_state_account",
+          "writable": true
         },
         {
           "name": "tier_payouts_account",

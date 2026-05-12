@@ -176,7 +176,11 @@ app.post('/crank', async (req, res) => {
         // ==========================================
         console.log("⏳ [PHASE 3] Attempting Settle & Rollover...");
         try {
-            const rolloverAccounts: any = { signer: rngAuthorityKp.publicKey, nextLpDrawingState: nextLpDrawingStatePda };
+            const rolloverAccounts: any = {
+                signer: rngAuthorityKp.publicKey,
+                nextDrawingStateAccount: nextDrawingStatePda,
+                nextLpDrawingState: nextLpDrawingStatePda
+            };
             if (prevPerEpochStatePda) rolloverAccounts.prevPerEpochState = prevPerEpochStatePda;
 
             const runLordspotIx = await lordsPotProgram.methods.runLordspot().accounts(rolloverAccounts).instruction();
