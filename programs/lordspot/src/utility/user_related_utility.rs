@@ -91,7 +91,7 @@ pub fn pack_ticket(
     normal_marbles: &[u8],
     special_marble: u8,
     normal_max: u8,
-) -> Result<u64> { // 🚨 Return a Result instead of raw u64
+) -> Result<u64> {
 
     let mut packed: u64 = 0;
 
@@ -101,7 +101,6 @@ pub fn pack_ticket(
 
     let bonus_pos = normal_max as u64 + special_marble as u64;
 
-    // 🚨 CRITICAL SAFETY CHECK
     require!(bonus_pos < 64, LordspotError::AirthMaticOverflow); // Prevent bit-shift panics
 
     packed |= 1u64 << bonus_pos;

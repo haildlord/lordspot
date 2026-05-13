@@ -97,7 +97,7 @@ module.exports = async function (provider: anchor.AnchorProvider) {
     // ============================================================================
     // STEP 2: INITIALIZE LORDSPOT
     // ============================================================================
-    console.log("\n--- STEP 1: Initializing LordsPot ---");
+    console.log("\n--- STEP 2: Initializing LordsPot ---");
 
     const initTx = await lordsPotProgram.methods
         .initialize(
@@ -111,7 +111,7 @@ module.exports = async function (provider: anchor.AnchorProvider) {
             25, // special_ball_hard_cap: 25 Lord balls
             new anchor.BN(0), // protocol_fee: 0% (Devs take no fee)
             new anchor.BN(0), // protocol_fee_threshold: 0
-            new anchor.BN(360) // ! when deploying change : drawing_duration: 1 Day (86400 seconds)
+            new anchor.BN(120) // ! 600 when deploying change : drawing_duration: 1 Day (86400 seconds)
         )
         .accounts({
             tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
@@ -146,7 +146,7 @@ module.exports = async function (provider: anchor.AnchorProvider) {
     // STEP 3: LP DEPOSIT ($10,000 USDC)
     // ============================================================================
 
-    console.log("\n--- STEP 2: Initial LP Deposit ---");
+    console.log("\n--- STEP 3: Initial LP Deposit ---");
 
     // Depositing a safe, mathematically supported $10,000 to seed the pool.
     const DEPOSIT_AMOUNT = new anchor.BN(150_000).mul(new anchor.BN(1_000_000));
@@ -183,7 +183,7 @@ module.exports = async function (provider: anchor.AnchorProvider) {
     // ============================================================================
     // STEP 3: INIT LORDSPOT (START THE PROTOCOL)
     // ============================================================================
-    console.log("\n--- STEP 3: Starting LordsPot Protocol ---");
+    console.log("\n--- STEP 4: Starting LordsPot Protocol ---");
 
     const nowTime = new anchor.BN(Math.floor(Date.now() / 1000));
 

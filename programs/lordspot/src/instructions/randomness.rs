@@ -180,22 +180,22 @@ pub fn run_lordspot_handler(ctx: Context<RunLordspot>) -> Result<()> {
         0,
     )?;
 
-    ctx.accounts.next_drawing_state_account.prize_pool = new_lp_value;
-
     let clock = Clock::get()?;
     let time_now = clock.unix_timestamp as u64;
     let new_deadline = time_now
         .checked_add(global.drawing_duration)
         .ok_or(LordspotError::AirthMaticOverflow)?;
-    
+
+   
     _set_new_drawing_state(
         global,
         &mut ctx.accounts.next_lp_drawing_state,
-        drawing,
+        &mut ctx.accounts.next_drawing_state_account, // Passes the newly created PDA for Epoch 2
         new_lp_value,
         new_deadline
     )?;
 
+    // We correctly unlock Epoch 1 so users can claim their winnings
     drawing.lordspot_lock = false;
 
     Ok(())

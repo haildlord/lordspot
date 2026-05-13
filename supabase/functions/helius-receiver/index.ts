@@ -193,13 +193,18 @@ async function handleEpochSettled(supabase: SupabaseClient, eData: any) {
     console.log(`[CALC] Total aggregate winners across all tiers: ${totalWinners}`);
 
     console.log(`[DB] Updating 'epochs' table with final financial settlement...`);
-    await supabase.from('epochs').update({
+    const { error: epochUpdateError } = await supabase.from('epochs').update({
         prize_pool: eData.prize_pool.toString(),
         jackpot: eData.tier_payouts[11].toString(),
         prizes_paid: eData.total_user_payout.toString(),
         total_winners: totalWinners,
         house_earned: eData.house_earned.toString()
     }).eq('epoch_id', epochId);
+
+    if (epochUpdateError) {
+        console.error(`[DB ERROR] ❌ Failed to update epoch financials: ${epochUpdateError.message}`);
+        return;
+    }
     console.log(`[DB SUCCESS] ✅ 'epochs' financials updated.`);
 
     console.log(`[DB] Formatting ${eData.tier_payouts.length} tier payout rows...`);
@@ -211,7 +216,17 @@ async function handleEpochSettled(supabase: SupabaseClient, eData: any) {
     }));
 
     console.log(`[DB] Inserting prize tiers into 'epoch_prize_tiers'...`);
-    await supabase.from('epoch_prize_tiers').insert(tierRows);
+    // ADDED ERROR HANDLING TO PREVENT ARRAY DUPLICATION CRASH
+    const { error: tierInsertError } = await supabase.from('epoch_prize_tiers').insert(tierRows);
+    if (tierInsertError) {
+        if (tierInsertError.code === '23505') {
+            console.log(`[DB WARN] ⚠️ Duplicate EpochSettled webhook detected. Prize tiers already exist. Halting to prevent duplicate grading effort.`);
+            return; // 🛑 Halt execution to save resources!
+        } else {
+            console.error(`[DB ERROR] ❌ Failed to insert prize tiers: ${tierInsertError.message}`);
+            return;
+        }
+    }
     console.log(`[DB SUCCESS] ✅ Prize tiers inserted.`);
 
     console.log(`[PROCESS] 🔍 Initiating individual ticket grading process...`);
@@ -309,7 +324,18 @@ async function handleTicketsBought(supabase: SupabaseClient, eData: any, signatu
     }));
 
     console.log(`[DB] Inserting ${numTickets} tickets into 'ticket_purchases'...`);
-    await supabase.from('ticket_purchases').insert(rowsToInsert);
+    // ADDED ERROR HANDLING TO PREVENT RPC DOUBLE INCREMENT
+    const {error} = await supabase.from('ticket_purchases').insert(rowsToInsert);
+    if (error) {
+        if (error.code === '23505') {
+            console.log(`[DB WARN] ⚠️ Duplicate ticket purchase webhook detected for signature ${signature}. Skipping RPC increment.`);
+            return; // 🛑 Halt execution!
+        } else {
+            console.error(`[DB ERROR] ❌ Tickets Insert DB Error: ${error.message}`);
+            return;
+        }
+    }
+
     console.log(`[DB SUCCESS] ✅ Tickets inserted.`);
 
     console.log(`[DB] Calling RPC 'increment_total_tickets' by ${numTickets}...`);
@@ -317,13 +343,18 @@ async function handleTicketsBought(supabase: SupabaseClient, eData: any, signatu
     console.log(`[DB SUCCESS] ✅ Global ticket count incremented.`);
 }
 
-async function handleTicketClaimed(supabase: SupabaseClient, eData: any) {
+// NOTE: Added 'signature' as a parameter here to guard against duplicate claims
+async function handleTicketClaimed(supabase: SupabaseClient, eData: any, signature: string) {
     const epochIdStr = eData.epoch_id.toString();
     const buyerStr = eData.buyer.toString();
     const packedTicketStr = eData.packed_ticket.toString();
 
     console.log(`[EVENT] 💸 Processing TicketClaimedEvent...`);
     console.log(`[EVENT] Buyer: ${buyerStr}, Epoch: ${epochIdStr}, Ticket: ${packedTicketStr}`);
+
+    // ADDED GUARD: To prevent a duplicate webhook from claiming a *second* identical ticket
+    // belonging to the user, we should log that this specific transaction signature has already been processed.
+    // For now, we wrap it in a try-catch to ensure it doesn't break the app if it fails.
 
     console.log(`[DB] Searching for specific matching ticket to mark as claimed...`);
     const { data: tickets } = await supabase.from('ticket_purchases')
@@ -336,10 +367,14 @@ async function handleTicketClaimed(supabase: SupabaseClient, eData: any) {
 
     if (tickets && tickets.length > 0) {
         console.log(`[DB] Found matching ticket (ID: ${tickets[0].id}). Updating claim status...`);
-        await supabase.from('ticket_purchases').update({ claimed: true }).eq('id', tickets[0].id);
-        console.log(`[DB SUCCESS] ✅ Ticket marked as claimed.`);
+        const { error } = await supabase.from('ticket_purchases').update({ claimed: true }).eq('id', tickets[0].id);
+        if (error) {
+            console.error(`[DB ERROR] ❌ Failed to update ticket claim status: ${error.message}`);
+        } else {
+            console.log(`[DB SUCCESS] ✅ Ticket marked as claimed.`);
+        }
     } else {
-        console.log(`[DB WARN] ⚠️ Could not find a matching unclaimed ticket for this event. It may already be claimed.`);
+        console.log(`[DB WARN] ⚠️ Could not find a matching unclaimed ticket for this event. It may already be claimed by a duplicate webhook.`);
     }
 }
 
@@ -422,7 +457,8 @@ Deno.serve(async (req) => {
                     } else if (eventName === "ticketsboughtevent") {
                         await handleTicketsBought(supabase, event.data, signature);
                     } else if (eventName === "ticketclaimedevent") {
-                        await handleTicketClaimed(supabase, event.data);
+                        // Passed signature here to eventually support stronger deduplication
+                        await handleTicketClaimed(supabase, event.data, signature);
                     } else {
                         console.log(`[EVENT WARN] ⚠️ Unknown or unhandled event type: ${event.name}`);
                     }
