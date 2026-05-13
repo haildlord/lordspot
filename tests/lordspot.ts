@@ -29,7 +29,7 @@ describe("lordspot", () => {
 
 
 
-  it("Fetches the current state of the PDA", async () => {
+  it.only("Fetches the current state of the PDA", async () => {
     console.log("🔍 Running Fetch Test...");
     try {
       const tx = await program.methods
@@ -60,18 +60,18 @@ describe("lordspot", () => {
 
 
 
-  it.only("Deletes the Global State PDA (Universal Close)", async () => {
+  it("Deletes the Global State PDA (Universal Close)", async () => {
 
     console.log("🧹 Wiping Global State PDA...");
 
     try {
 
-        let ongoing_epoch = 8;
+        let ongoing_epoch = 5;
 
         // # Lpinfo PDA
 
         let lp_array = [
-            "HpAYk14jYpomivS4F7oXySN81sdoPvTaHtFsPgiK2jzf",
+            // "HpAYk14jYpomivS4F7oXySN81sdoPvTaHtFsPgiK2jzf",
         ];
         for (let i = 0; i < lp_array.length; i++) {
             await program.methods
@@ -87,73 +87,73 @@ describe("lordspot", () => {
 
         // # PDA created on succesfull intialization
 
-        const tx1 = await program.methods
-            .universalClose()
-            .accounts({
-                admin: phantomSigner.publicKey,
-                targetPda: getGlobalStatePda()[0], // GlobalState
-                receiver: wallet.publicKey,
-            }).signers([phantomSigner])
-            .rpc();
-
-        for (let i = 0; i <= ongoing_epoch; i++){
-
-            if (i != 0) {
-                await program.methods
-                    .universalClose()
-                    .accounts({
-                        admin: phantomSigner.publicKey,
-                        targetPda: getTicketTrackerPda(i)[0], // TicketTracker - [1, ongoing_epoch]
-                        receiver: wallet.publicKey,
-                    }).signers([phantomSigner])
-                    .rpc();
-            }
-
-            if (i != ongoing_epoch) {
-                await program.methods
-                    .universalClose()
-                    .accounts({
-                        admin: phantomSigner.publicKey,
-                        targetPda: getPerEpochStatePda( i)[0], // PerEpochState - [0, ongoing_epoch)
-                        receiver: wallet.publicKey,
-                    }).signers([phantomSigner])
-                    .rpc();
-            }
-
-            if(i != 0 && i != ongoing_epoch) {
-                await program.methods
-                    .universalClose()
-                    .accounts({
-                        admin: phantomSigner.publicKey,
-                        targetPda: getTierPayoutsPda( i)[0], // TierPayouts - (0, ongoing_epoch)
-                        receiver: wallet.publicKey,
-                    }).signers([phantomSigner])
-                    .rpc();
-            }
-
-            await program.methods
-                .universalClose()
-                .accounts({
-                    admin: phantomSigner.publicKey,
-                    targetPda: getLpDrawingStatePda( i)[0], // EpochIdToLPDrawingState - [0, ongoing_epoch]
-                    receiver: wallet.publicKey,
-                }).signers([phantomSigner])
-                .rpc();
-
-            await program.methods
-                .universalClose()
-                .accounts({
-                    admin: phantomSigner.publicKey,
-                    targetPda: getDrawingStatePda( i)[0], // DrawingState - [0, ongoing_epoch]
-                    receiver: wallet.publicKey,
-                }).signers([phantomSigner])
-                .rpc();
-        }
+        // const tx1 = await program.methods
+        //     .universalClose()
+        //     .accounts({
+        //         admin: phantomSigner.publicKey,
+        //         targetPda: getGlobalStatePda()[0], // GlobalState
+        //         receiver: wallet.publicKey,
+        //     }).signers([phantomSigner])
+        //     .rpc();
+        //
+        // for (let i = 0; i <= ongoing_epoch; i++){
+        //
+        //     if (i != 0) {
+        //         await program.methods
+        //             .universalClose()
+        //             .accounts({
+        //                 admin: phantomSigner.publicKey,
+        //                 targetPda: getTicketTrackerPda(i)[0], // TicketTracker - [1, ongoing_epoch]
+        //                 receiver: wallet.publicKey,
+        //             }).signers([phantomSigner])
+        //             .rpc();
+        //     }
+        //
+        //     if (i != ongoing_epoch) {
+        //         await program.methods
+        //             .universalClose()
+        //             .accounts({
+        //                 admin: phantomSigner.publicKey,
+        //                 targetPda: getPerEpochStatePda( i)[0], // PerEpochState - [0, ongoing_epoch)
+        //                 receiver: wallet.publicKey,
+        //             }).signers([phantomSigner])
+        //             .rpc();
+        //     }
+        //
+        //     if(i != 0 && i != ongoing_epoch) {
+        //         await program.methods
+        //             .universalClose()
+        //             .accounts({
+        //                 admin: phantomSigner.publicKey,
+        //                 targetPda: getTierPayoutsPda( i)[0], // TierPayouts - (0, ongoing_epoch)
+        //                 receiver: wallet.publicKey,
+        //             }).signers([phantomSigner])
+        //             .rpc();
+        //     }
+        //
+        //     await program.methods
+        //         .universalClose()
+        //         .accounts({
+        //             admin: phantomSigner.publicKey,
+        //             targetPda: getLpDrawingStatePda( i)[0], // EpochIdToLPDrawingState - [0, ongoing_epoch]
+        //             receiver: wallet.publicKey,
+        //         }).signers([phantomSigner])
+        //         .rpc();
+        //
+        //     await program.methods
+        //         .universalClose()
+        //         .accounts({
+        //             admin: phantomSigner.publicKey,
+        //             targetPda: getDrawingStatePda( i)[0], // DrawingState - [0, ongoing_epoch]
+        //             receiver: wallet.publicKey,
+        //         }).signers([phantomSigner])
+        //         .rpc();
+        // }
 
 
         // # (ticket buyers PDA, epoch wise, which epoch you bought)
         let arr = [
-            // ["BFnNt9EKsfZbf7w1GYkWaYHrA5zwbiiAcUZLst4js9Qc", 1] // anant
+            // ["BFnNt9EKsfZbf7w1GYkWaYHrA5zwbiiAcUZLst4js9Qc", 1]  // anant
             // ["BMxDCNpDDepd1TCfV5ECwmsGnYMY7r1j6yGcupPYDFdo", 1], // milan
             // ["9Z88MBc5HfhKM9zDW3Rfv9f8D6AK648hCS33ava6Dfp3", 1], // unnati
             // ["HpAYk14jYpomivS4F7oXySN81sdoPvTaHtFsPgiK2jzf", 1], // me
@@ -163,6 +163,7 @@ describe("lordspot", () => {
             // ["HpAYk14jYpomivS4F7oXySN81sdoPvTaHtFsPgiK2jzf", 3], // me
             // ["4MXuJrbN8X93oncAvTbhn3rDp11xy9DmyVkD7RrszeP5", 3], // ujjawal,
             // ["B7UDQYFaVDKYqMxAfxsrKN1M1woL2HH9bvc6o2Jd5zea", 3], // priyanka
+            // ["4K9UxvrKqmyxHqG5XDjVHPkgVcJ59x6HeZVn3evQG65g", 1]  // pihu
         ]
 
         for (let i = 0; i < arr.length; i++) {

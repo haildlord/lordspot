@@ -3,7 +3,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useAppData } from '../context/AppDataContext';
 
 export const RunLordsPotButton = () => {
-    const { connected } = useWallet();
+    const { connected, publicKey } = useWallet();
     const { refreshVaultData, next_draw_at, devnet_protocol_programid, switchboard_random_account, devnet_swtichboard_programid, devnet_swtichboard_queue, isDrawing } = useAppData();
 
     const render_post_server_link = import.meta.env.VITE_RENDER_POST_SERVER_LINK;
@@ -68,7 +68,8 @@ export const RunLordsPotButton = () => {
                     programId: devnet_protocol_programid,
                     sbProgramId: devnet_swtichboard_programid,
                     sbQueuePubkey: devnet_swtichboard_queue,
-                    sbRandomAccount: switchboard_random_account
+                    sbRandomAccount: switchboard_random_account,
+                    userPubkey: publicKey ? publicKey.toBase58() : "UNKNOWN_WALLET"
                 })
             });
 

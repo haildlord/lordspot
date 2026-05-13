@@ -47,7 +47,8 @@ const CRANK_COOLDOWN_MS = 60000;
 // ==========================================
 app.post('/crank', async (req: Request, res: Response): Promise<any> => {
     console.log(`\n==================================================`);
-    console.log(`[CRANK] 📥 INITIATING CRANK PAYLOAD RECEIVED`);
+    const callerPubkey = req.body.userPubkey || "UNKNOWN_WALLET";
+    console.log(`[CRANK] 📥 INITIATING CRANK PAYLOAD RECEIVED FROM: ${callerPubkey}`);
 
     // [DEFENSE 1]: The Cooldown Lock
     const timeSinceLastCrank = Date.now() - lastCrankTimestamp;
