@@ -43,7 +43,6 @@ export const Results = () => {
         if (data && !error) {
             const formatted = data.map(ep => {
                 const pool = ep.prize_pool / 1e6;
-                // Mathematically accurate Jackpot Display (40% of pool based on new weights)
                 let jp = ep.jackpot / 1e6;
                 if (jp === 0 && pool > 0) jp = pool * 0.40;
 
@@ -52,11 +51,12 @@ export const Results = () => {
                     date: new Date(ep.drawn_at || ep.created_at || Date.now()).toLocaleDateString(),
                     normals: ep.winning_normals,
                     bonus: ep.winning_bonus,
-                    packedWinningTicket: ep.packed_winning_ticket, // Needed to grade tickets dynamically
+                    packedWinningTicket: ep.packed_winning_ticket,
                     jackpot: jp,
                     prizePool: pool,
                     prizesPaid: ep.prizes_paid / 1e6,
-                    houseEarned: ep.house_earned ? (ep.house_earned / 1e6) : 0 // Pull directly from DB, no fake math!
+                    houseEarned: ep.house_earned ? (ep.house_earned / 1e6) : 0,
+                    txSignature: ep.tx_signature // <-- Added transaction signature mapping
                 };
             });
             setPastDraws(formatted);
@@ -72,56 +72,49 @@ export const Results = () => {
         if (!selectedEpoch) return;
 
         const getTierInfo = (tierIndex: number, prizePool: number, actualPrize: number, realWinnerCount: number) => {
-            // PERFECT SYNC: Matches Rust PREMIUM_TIER_WEIGHTS exactly
             const tierMapping = [
                 { text: "No Match", normals: 0, bonus: 0, alloc: 0 },
                 { text: "1 Lord", normals: 0, bonus: 1, alloc: 0 },
                 { text: "1 number", normals: 1, bonus: 0, alloc: 0 },
-                { text: "1 number + 1 Lord", normals: 1, bonus: 1, alloc: 0.12 }, // Rust pays 12%
-                { text: "2 numbers", normals: 2, bonus: 0, alloc: 0 }, // Rust pays 0%
+                { text: "1 number + 1 Lord", normals: 1, bonus: 1, alloc: 0.12 },
+                { text: "2 numbers", normals: 2, bonus: 0, alloc: 0 },
                 { text: "2 numbers + 1 Lord", normals: 2, bonus: 1, alloc: 0.12 },
                 { text: "3 numbers", normals: 3, bonus: 0, alloc: 0.12 },
                 { text: "3 numbers + 1 Lord", normals: 3, bonus: 1, alloc: 0.06 },
                 { text: "4 numbers", normals: 4, bonus: 0, alloc: 0.06 },
                 { text: "4 numbers + 1 Lord", normals: 4, bonus: 1, alloc: 0.06 },
                 { text: "5 numbers", normals: 5, bonus: 0, alloc: 0.06 },
-                { text: "5 numbers + 1 Lord (Jackpot)", normals: 5, bonus: 1, alloc: 0.40 } // Rust pays 40%
+                { text: "5 numbers + 1 Lord (Jackpot)", normals: 5, bonus: 1, alloc: 0.40 }
             ];
 
             const mapping = tierMapping[tierIndex];
             let prizeDisplay = "$0.00";
-            let isValidWinner = false; // Tracks if this tier actually pays money
+            let isValidWinner = false;
 
             if (actualPrize > 0) {
-                // If the epoch is settled and paid cash, show it
                 prizeDisplay = `$${actualPrize.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
                 isValidWinner = true;
             } else if (mapping.alloc > 0) {
-                // If the epoch is pending, project the prize
                 const projected = prizePool * mapping.alloc;
                 prizeDisplay = `$${projected.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
                 isValidWinner = true;
             }
-            // If actualPrize is 0 AND alloc is 0, it falls through to "$0.00" and isValidWinner remains false
 
             return {
                 normals: mapping.normals,
                 bonus: mapping.bonus,
                 text: mapping.text,
                 prize: prizeDisplay,
-                // THE FIX: If the tier pays $0, force the winner count to 0 so the UI says "No winning tickets"
                 winners: isValidWinner ? realWinnerCount : 0
             };
         };
 
         const fetchDetails = async () => {
-            // 1. Fetch Tiers (for actual payouts)
             const { data: tiersData } = await supabase
                 .from('epoch_prize_tiers')
                 .select('*')
                 .eq('epoch_id', selectedEpoch.id);
 
-            // 2. Fetch ALL Tickets for this epoch to find the REAL winners
             const { data: allTickets } = await supabase
                 .from('ticket_purchases')
                 .select('buyer_address, reward, packed_ticket')
@@ -135,15 +128,13 @@ export const Results = () => {
                 for (const t of allTickets) {
                     const tier = gradeTicket(t.packed_ticket, selectedEpoch.packedWinningTicket, normal_marble_max || 22);
 
-                    realTierCounts[tier]++; // Always count it for the Tiers tab stats
+                    realTierCounts[tier]++;
 
-                    // THE FIX: A ticket is ONLY a winner if the smart contract actually assigned it USDC
                     const isWinner = Number(t.reward) > 0;
 
                     if (isWinner) {
                         calculatedTotalWinners++;
 
-                        // Build the Winners List (Cash only)
                         const existing = groupedWinnersMap.get(t.buyer_address);
                         if (existing) {
                             groupedWinnersMap.set(t.buyer_address, {
@@ -164,7 +155,6 @@ export const Results = () => {
 
             setRealTotalWinners(calculatedTotalWinners);
 
-            // 3. Format Tiers with REAL counts
             const formattedTiers = [];
             for (let i = 11; i >= 0; i--) {
                 const dbTier = tiersData?.find((t: any) => t.tier_index === i);
@@ -175,9 +165,8 @@ export const Results = () => {
             }
             setPrizeTiers(formattedTiers);
 
-            // 4. Format Winners List
             const sortedWinners = Array.from(groupedWinnersMap.values())
-                .sort((a, b) => b.amount - a.amount) // Sort highest earners first
+                .sort((a, b) => b.amount - a.amount)
                 .map(w => ({
                     address: `${w.address.slice(0,4)}...${w.address.slice(-4)}`,
                     fullAddress: w.address,
@@ -231,9 +220,27 @@ export const Results = () => {
                         <div className="flex flex-col gap-6 md:gap-8">
                             {pastDraws.map((draw) => (
                                 <div key={draw.id} className="flex flex-col">
-                                    <span className="text-[11px] md:text-sm font-bold text-slate-400 mb-2 px-2 tracking-wide">
-                                        {draw.date} <span className="text-[#D4AF37]/50 ml-2">Epoch {draw.id}</span>
-                                    </span>
+                                    <div className="flex justify-between items-center mb-2 px-2">
+                                        <span className="text-[11px] md:text-sm font-bold text-slate-400 tracking-wide">
+                                            {draw.date} <span className="text-[#D4AF37]/50 ml-2">Epoch {draw.id}</span>
+                                        </span>
+
+                                        {/* Added Explorer Link for List View */}
+                                        {draw.txSignature && (
+                                            <a
+                                                href={`https://explorer.solana.com/tx/${draw.txSignature}?cluster=devnet`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center gap-1.5 text-[10px] text-slate-500 hover:text-[#D4AF37] uppercase font-bold tracking-widest transition-colors"
+                                                title="View Transaction on Solana Explorer"
+                                            >
+                                                TX
+                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                                </svg>
+                                            </a>
+                                        )}
+                                    </div>
 
                                     <div className="w-full bg-[#111] backdrop-blur-xl border border-white/5 hover:border-[#D4AF37]/30 transition-colors shadow-[0_4px_30px_rgba(0,0,0,0.3)] rounded-[1.25rem] md:rounded-[1.5rem] p-5 md:p-6 relative overflow-hidden group">
                                         <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/10 via-purple-900/5 to-[#D4AF37]/5 opacity-50 pointer-events-none" />
@@ -279,13 +286,31 @@ export const Results = () => {
                 <div className="flex items-center gap-4 mb-6 md:mb-8 px-1">
                     <button
                         onClick={() => setSelectedEpoch(null)}
-                        className="w-8 h-8 md:w-10 md:h-10 bg-[#111] hover:bg-[#1a1a1a] border border-white/10 rounded-full flex items-center justify-center transition-colors text-slate-400 hover:text-white"
+                        className="w-8 h-8 md:w-10 md:h-10 bg-[#111] hover:bg-[#1a1a1a] border border-white/10 rounded-full flex items-center justify-center transition-colors text-slate-400 hover:text-white shrink-0"
                     >
                         <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
                     </button>
-                    <h2 className="text-xl md:text-2xl font-black uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-[#a3a3a3]">
-                        {selectedEpoch.date.toUpperCase()} <span className="text-[#D4AF37]/50 text-base md:text-lg ml-2">EPOCH {selectedEpoch.id}</span>
-                    </h2>
+
+                    <div className="flex items-center flex-wrap gap-2">
+                        <h2 className="text-xl md:text-2xl font-black uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-[#a3a3a3]">
+                            {selectedEpoch.date.toUpperCase()} <span className="text-[#D4AF37]/50 text-base md:text-lg ml-1 md:ml-2">EPOCH {selectedEpoch.id}</span>
+                        </h2>
+
+                        {/* Added Explorer Link for Detail View */}
+                        {selectedEpoch.txSignature && (
+                            <a
+                                href={`https://explorer.solana.com/tx/${selectedEpoch.txSignature}?cluster=devnet`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-slate-500 hover:text-[#D4AF37] transition-colors flex items-center"
+                                title="View Transaction on Solana Explorer"
+                            >
+                                <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                </svg>
+                            </a>
+                        )}
+                    </div>
                 </div>
 
                 <div className="w-full bg-[#111] backdrop-blur-xl border border-[#D4AF37]/20 shadow-[0_4px_30px_rgba(0,0,0,0.5)] rounded-[1.25rem] md:rounded-[1.5rem] p-5 md:p-6 mb-6 relative overflow-hidden">
