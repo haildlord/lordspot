@@ -29,7 +29,7 @@ export const useUserBalance = () => {
             // If the ATA doesn't exist, they have 0 tokens.
             setBalance(0);
         }
-    }, [connected, publicKey, connection, devnet_mock_usdc_mint_address]); // <-- Fixed Dependencies!
+    }, [connected, publicKey, connection, devnet_mock_usdc_mint_address]);
 
     useEffect(() => {
         fetchBalance();
@@ -41,9 +41,7 @@ export const useUserBalance = () => {
     return { balance, fetchBalance };
 };
 
-// ==========================================
-// 2. THE UI COMPONENT (Renders the block)
-// ==========================================
+
 export const BalanceDisplay = ({ balance }: { balance: number | null }) => {
     return (
         <div className="flex justify-between items-center mb-2 md:mb-3 px-1">

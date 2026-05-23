@@ -9,7 +9,6 @@ const coder = new anchor.BorshEventCoder(IDL as anchor.Idl);
 // ============================================================================
 
 function calculateTicketTier(ticketStr: string, winningStr: string, normalMax: number) {
-    // console.log(`[CALC] Grading ticket: ${ticketStr} against winning: ${winningStr} (Max Normal: ${normalMax})`);
     const ticket = BigInt(ticketStr);
     const winning = BigInt(winningStr);
 
@@ -24,7 +23,6 @@ function calculateTicketTier(ticketStr: string, winningStr: string, normalMax: n
 
     const bonusMatch = ((ticket & winning) & ~normalMask) !== BigInt(0);
     const finalTier = (normalMatches * 2) + (bonusMatch ? 1 : 0);
-    // console.log(`[CALC] Ticket graded -> Matches: ${normalMatches}, Bonus Match: ${bonusMatch}, Resulting Tier: ${finalTier}`);
     return finalTier;
 }
 
@@ -54,7 +52,7 @@ function unpackWinningTicket(packedTicketStr: string, normalMax: number) {
 // ============================================================================
 
 async function handleGlobalConfigInitialized(supabase: SupabaseClient, eData: any) {
-    console.log(`[EVENT] ⚙️ Processing GlobalConfigInitialized...`);
+    console.log(`[EVENT] Processing GlobalConfigInitialized...`);
     console.log(`[EVENT] Data extracted -> Pool Cap: ${eData.pool_total_cap.toString()}, Max Marble: ${eData.normal_marble_max}, Ticket Price: ${eData.ticket_price.toString()}`);
 
     console.log(`[DB] Attempting to upsert 'global_config' ID: 1...`);
@@ -72,16 +70,16 @@ async function handleGlobalConfigInitialized(supabase: SupabaseClient, eData: an
         });
 
     if (error) {
-        console.error(`[DB ERROR] ❌ GlobalConfig DB Error: ${error.message}`);
+        console.error(`[DB ERROR] GlobalConfig DB Error: ${error.message}`);
         throw new Error(`GlobalConfig DB Error: ${error.message}`);
     } else {
-        console.log(`[DB SUCCESS] ✅ 'global_config' successfully initialized/updated.`);
+        console.log(`[DB SUCCESS] 'global_config' successfully initialized/updated.`);
     }
 }
 
 async function handleLpActivity(supabase: SupabaseClient, eventName: string, eData: any, signature: string) {
     const userAddress = eData.user.toString();
-    console.log(`[EVENT] 🌊 Processing LP Activity (${eventName}) for user ${userAddress}...`);
+    console.log(`[EVENT] Processing LP Activity (${eventName}) for user ${userAddress}...`);
 
     let actionType = '';
     let amount = 0;
@@ -116,19 +114,19 @@ async function handleLpActivity(supabase: SupabaseClient, eventName: string, eDa
 
     if (error) {
         if (error.code === '23505') {
-            console.log(`[DB WARN] ⚠️ LP Activity duplicate detected (code 23505). Skipping safely.`);
+            console.log(`[DB WARN] LP Activity duplicate detected (code 23505). Skipping safely.`);
         } else {
-            console.error(`[DB ERROR] ❌ LP Activity DB Error: ${error.message}`);
+            console.error(`[DB ERROR] LP Activity DB Error: ${error.message}`);
         }
     } else {
-        console.log(`[DB SUCCESS] ✅ LP Activity logged successfully.`);
+        console.log(`[DB SUCCESS] LP Activity logged successfully.`);
     }
 }
 
 // THE ZOMBIE WEBHOOK KILLER
 async function handleRandomnessCommitted(supabase: SupabaseClient, eData: any) {
     const epochIdStr = eData.epoch_id.toString();
-    console.log(`[EVENT] 🔒 Processing RandomnessCommittedEvent for Epoch ${epochIdStr}...`);
+    console.log(`[EVENT] Processing RandomnessCommittedEvent for Epoch ${epochIdStr}...`);
 
     console.log(`[DB] Checking if Epoch ${epochIdStr} has already been settled...`);
     const { data: existingEpoch } = await supabase
@@ -138,7 +136,7 @@ async function handleRandomnessCommitted(supabase: SupabaseClient, eData: any) {
         .single();
 
     if (existingEpoch) {
-        console.log(`[WEBHOOK GUARD] 🛡️ GHOST WEBHOOK KILLED: Epoch ${epochIdStr} is already finished. Ignoring old commit event. Exit Early!`);
+        console.log(`[WEBHOOK GUARD] GHOST WEBHOOK KILLED: Epoch ${epochIdStr} is already finished. Ignoring old commit event. Exit Early!`);
         return;
     }
 
@@ -149,15 +147,15 @@ async function handleRandomnessCommitted(supabase: SupabaseClient, eData: any) {
         .eq('id', 1);
 
     if (error) {
-        console.error(`[DB ERROR] ❌ DB Error (Randomness Commit UI Lock): ${error.message}`);
+        console.error(`[DB ERROR] DB Error (Randomness Commit UI Lock): ${error.message}`);
     } else {
-        console.log(`[DB SUCCESS] ✅ UI Locked successfully for Epoch ${epochIdStr}`);
+        console.log(`[DB SUCCESS] UI Locked successfully for Epoch ${epochIdStr}`);
     }
 }
 
 async function handleWinningTicketDrawn(supabase: SupabaseClient, eData: any, signature: string) {
     const epochIdStr = eData.epoch_id.toString();
-    console.log(`[EVENT] 🎯 Processing WinningTicketDrawnEvent for Epoch ${epochIdStr}...`);
+    console.log(`[EVENT] Processing WinningTicketDrawnEvent for Epoch ${epochIdStr}...`);
 
     const packedTicket = eData.packed_winning_ticket.toString();
     console.log(`[EVENT] Packed winning ticket string: ${packedTicket}`);
@@ -176,18 +174,18 @@ async function handleWinningTicketDrawn(supabase: SupabaseClient, eData: any, si
 
     if (error) {
         if (error.code === '23505') {
-            console.log(`[DB WARN] ⚠️ Duplicate draw record detected (code 23505). Skipping safely.`);
+            console.log(`[DB WARN] Duplicate draw record detected (code 23505). Skipping safely.`);
         } else {
-            console.error(`[DB ERROR] ❌ DB Error (WinningTicketDrawn): ${error.message}`);
+            console.error(`[DB ERROR] DB Error (WinningTicketDrawn): ${error.message}`);
         }
     } else {
-        console.log(`[DB SUCCESS] ✅ Winning ticket successfully saved to 'epochs' table.`);
+        console.log(`[DB SUCCESS] Winning ticket successfully saved to 'epochs' table.`);
     }
 }
 
 async function handleEpochSettled(supabase: SupabaseClient, eData: any) {
     const epochId = eData.epoch_id.toString();
-    console.log(`[EVENT] 💰 Processing EpochSettledEvent for Epoch ${epochId}...`);
+    console.log(`[EVENT] Processing EpochSettledEvent for Epoch ${epochId}...`);
 
     const totalWinners = eData.tier_winners.reduce((acc: number, val: any) => acc + Number(val.toString()), 0);
     console.log(`[CALC] Total aggregate winners across all tiers: ${totalWinners}`);
@@ -202,10 +200,10 @@ async function handleEpochSettled(supabase: SupabaseClient, eData: any) {
     }).eq('epoch_id', epochId);
 
     if (epochUpdateError) {
-        console.error(`[DB ERROR] ❌ Failed to update epoch financials: ${epochUpdateError.message}`);
+        console.error(`[DB ERROR] Failed to update epoch financials: ${epochUpdateError.message}`);
         return;
     }
-    console.log(`[DB SUCCESS] ✅ 'epochs' financials updated.`);
+    console.log(`[DB SUCCESS] 'epochs' financials updated.`);
 
     console.log(`[DB] Formatting ${eData.tier_payouts.length} tier payout rows...`);
     const tierRows = eData.tier_payouts.map((payout: any, index: number) => ({
@@ -220,16 +218,16 @@ async function handleEpochSettled(supabase: SupabaseClient, eData: any) {
     const { error: tierInsertError } = await supabase.from('epoch_prize_tiers').insert(tierRows);
     if (tierInsertError) {
         if (tierInsertError.code === '23505') {
-            console.log(`[DB WARN] ⚠️ Duplicate EpochSettled webhook detected. Prize tiers already exist. Halting to prevent duplicate grading effort.`);
-            return; // 🛑 Halt execution to save resources!
+            console.log(`[DB WARN] Duplicate EpochSettled webhook detected. Prize tiers already exist. Halting to prevent duplicate grading effort.`);
+            return; // Halt execution to save resources!
         } else {
-            console.error(`[DB ERROR] ❌ Failed to insert prize tiers: ${tierInsertError.message}`);
+            console.error(`[DB ERROR] Failed to insert prize tiers: ${tierInsertError.message}`);
             return;
         }
     }
-    console.log(`[DB SUCCESS] ✅ Prize tiers inserted.`);
+    console.log(`[DB SUCCESS] Prize tiers inserted.`);
 
-    console.log(`[PROCESS] 🔍 Initiating individual ticket grading process...`);
+    console.log(`[PROCESS] Initiating individual ticket grading process...`);
     // Throttle slighty to allow DB replication
     await new Promise(resolve => setTimeout(resolve, 2000));
 
@@ -238,7 +236,7 @@ async function handleEpochSettled(supabase: SupabaseClient, eData: any) {
     const { data: globalData } = await supabase.from('global_config').select('normal_marble_max').eq('id', 1).single();
 
     if (!epochData || !globalData) {
-        console.error(`[CRITICAL ERROR] ❌ Failed to fetch epoch/global data for ticket grading. Grading aborted!`);
+        console.error(`[CRITICAL ERROR] Failed to fetch epoch/global data for ticket grading. Grading aborted!`);
         return;
     }
     console.log(`[DB] Successfully fetched grading data. Max Marbles: ${globalData.normal_marble_max}`);
@@ -265,7 +263,7 @@ async function handleEpochSettled(supabase: SupabaseClient, eData: any) {
                     });
                 }
             } catch (gradeErr) {
-                console.error(`[GRADING ERROR] ❌ Failed to grade ticket ID ${t.id}:`, gradeErr);
+                console.error(`[GRADING ERROR] Failed to grade ticket ID ${t.id}:`, gradeErr);
             }
         }
 
@@ -273,17 +271,17 @@ async function handleEpochSettled(supabase: SupabaseClient, eData: any) {
         if (updates.length > 0) {
             console.log(`[DB] Upserting winners to 'ticket_purchases' to apply rewards...`);
             await supabase.from('ticket_purchases').upsert(updates);
-            console.log(`[DB SUCCESS] ✅ Winners applied.`);
+            console.log(`[DB SUCCESS] Winners applied.`);
         }
     } else {
         console.log(`[PROCESS] No tickets found for Epoch ${epochId}. Skipping grading.`);
     }
-    console.log(`[EVENT SUCCESS] 🏁 EpochSettledEvent fully processed.`);
+    console.log(`[EVENT SUCCESS] EpochSettledEvent fully processed.`);
 }
 
 async function handleEpochStarted(supabase: SupabaseClient, eData: any) {
     const epochIdStr = eData.epoch_id.toString();
-    console.log(`[EVENT] 🌅 Processing EpochStartedEvent for Epoch ${epochIdStr}...`);
+    console.log(`[EVENT] Processing EpochStartedEvent for Epoch ${epochIdStr}...`);
 
     const isoDrawingDate = new Date(Number(eData.drawing_time.toString()) * 1000).toISOString();
     console.log(`[EVENT] Calculated next drawing time: ${isoDrawingDate}`);
@@ -299,9 +297,9 @@ async function handleEpochStarted(supabase: SupabaseClient, eData: any) {
     }).eq('id', 1);
 
     if (error) {
-        console.error(`[DB ERROR] ❌ Epoch Update DB Error: ${error.message}`);
+        console.error(`[DB ERROR] Epoch Update DB Error: ${error.message}`);
     } else {
-        console.log(`[DB SUCCESS] ✅ Epoch ${epochIdStr} started globally! UI unlocked.`);
+        console.log(`[DB SUCCESS] Epoch ${epochIdStr} started globally! UI unlocked.`);
     }
 }
 
@@ -310,7 +308,7 @@ async function handleTicketsBought(supabase: SupabaseClient, eData: any, signatu
     const buyerStr = eData.buyer.toString();
     const numTickets = eData.packed_tickets.length;
 
-    console.log(`[EVENT] 🎟️ Processing TicketsBoughtEvent for Epoch ${epochIdStr}...`);
+    console.log(`[EVENT] Processing TicketsBoughtEvent for Epoch ${epochIdStr}...`);
     console.log(`[EVENT] Buyer: ${buyerStr} bought ${numTickets} tickets.`);
 
     console.log(`[PROCESS] Formatting ticket rows for database insertion...`);
@@ -328,28 +326,28 @@ async function handleTicketsBought(supabase: SupabaseClient, eData: any, signatu
     const {error} = await supabase.from('ticket_purchases').insert(rowsToInsert);
     if (error) {
         if (error.code === '23505') {
-            console.log(`[DB WARN] ⚠️ Duplicate ticket purchase webhook detected for signature ${signature}. Skipping RPC increment.`);
-            return; // 🛑 Halt execution!
+            console.log(`[DB WARN] Duplicate ticket purchase webhook detected for signature ${signature}. Skipping RPC increment.`);
+            return; // Halt execution!
         } else {
-            console.error(`[DB ERROR] ❌ Tickets Insert DB Error: ${error.message}`);
+            console.error(`[DB ERROR] Tickets Insert DB Error: ${error.message}`);
             return;
         }
     }
 
-    console.log(`[DB SUCCESS] ✅ Tickets inserted.`);
+    console.log(`[DB SUCCESS] Tickets inserted.`);
 
     console.log(`[DB] Calling RPC 'increment_total_tickets' by ${numTickets}...`);
     await supabase.rpc('increment_total_tickets', { increment_amount: numTickets });
-    console.log(`[DB SUCCESS] ✅ Global ticket count incremented.`);
+    console.log(`[DB SUCCESS] Global ticket count incremented.`);
 }
 
-// NOTE: Added 'signature' as a parameter here to guard against duplicate claims
+// Added 'signature' as a parameter here to guard against duplicate claims
 async function handleTicketClaimed(supabase: SupabaseClient, eData: any, signature: string) {
     const epochIdStr = eData.epoch_id.toString();
     const buyerStr = eData.buyer.toString();
     const packedTicketStr = eData.packed_ticket.toString();
 
-    console.log(`[EVENT] 💸 Processing TicketClaimedEvent...`);
+    console.log(`[EVENT] Processing TicketClaimedEvent...`);
     console.log(`[EVENT] Buyer: ${buyerStr}, Epoch: ${epochIdStr}, Ticket: ${packedTicketStr}`);
 
     // ADDED GUARD: To prevent a duplicate webhook from claiming a *second* identical ticket
@@ -369,12 +367,12 @@ async function handleTicketClaimed(supabase: SupabaseClient, eData: any, signatu
         console.log(`[DB] Found matching ticket (ID: ${tickets[0].id}). Updating claim status...`);
         const { error } = await supabase.from('ticket_purchases').update({ claimed: true }).eq('id', tickets[0].id);
         if (error) {
-            console.error(`[DB ERROR] ❌ Failed to update ticket claim status: ${error.message}`);
+            console.error(`[DB ERROR] Failed to update ticket claim status: ${error.message}`);
         } else {
-            console.log(`[DB SUCCESS] ✅ Ticket marked as claimed.`);
+            console.log(`[DB SUCCESS] Ticket marked as claimed.`);
         }
     } else {
-        console.log(`[DB WARN] ⚠️ Could not find a matching unclaimed ticket for this event. It may already be claimed by a duplicate webhook.`);
+        console.log(`[DB WARN] Could not find a matching unclaimed ticket for this event. It may already be claimed by a duplicate webhook.`);
     }
 }
 
@@ -384,14 +382,14 @@ async function handleTicketClaimed(supabase: SupabaseClient, eData: any, signatu
 
 Deno.serve(async (req) => {
     console.log(`\n======================================================`);
-    console.log(`[WEBHOOK] 📥 INCOMING WEBHOOK RECEIVED`);
+    console.log(`[WEBHOOK] INCOMING WEBHOOK RECEIVED`);
 
     try {
         const projectUrl = Deno.env.get('PROJECT_URL');
         const serviceKey = Deno.env.get('SERVICE_ROLE_KEY');
 
         if (!projectUrl || !serviceKey) {
-            console.error(`[FATAL ERROR] ❌ Missing Supabase environment variables (PROJECT_URL or SERVICE_ROLE_KEY).`);
+            console.error(`[FATAL ERROR] Missing Supabase environment variables (PROJECT_URL or SERVICE_ROLE_KEY).`);
             throw new Error("FATAL: Missing Cloud Keys");
         }
 
@@ -407,7 +405,7 @@ Deno.serve(async (req) => {
 
         for (const tx of payload) {
             if (tx.meta?.err) {
-                console.log(`[TX] ⏩ Skipping transaction (it failed on-chain).`);
+                console.log(`[TX] Skipping transaction (it failed on-chain).`);
                 continue;
             }
 
@@ -415,30 +413,29 @@ Deno.serve(async (req) => {
             const signature = tx.signature || (tx.transaction?.signatures && tx.transaction.signatures[0]);
 
             if (!signature) {
-                console.log(`[TX WARN] ⚠️ Could not resolve a transaction signature. Skipping.`);
+                console.log(`[TX WARN] Could not resolve a transaction signature. Skipping.`);
                 continue;
             }
 
-            console.log(`[TX] 🔍 Scanning logs for Transaction: ${signature}`);
+            console.log(`[TX] Scanning logs for Transaction: ${signature}`);
 
             for (const log of logs) {
                 if (!log.includes("Program data:")) continue;
 
-                // console.log(`[TX] Found raw 'Program data'. Attempting to decode...`);
                 const data = log.split("Program data: ")[1];
                 let event;
 
                 try {
                     event = coder.decode(data);
                 } catch (e) {
-                    console.log(`[DECODE WARN] ⚠️ Failed to decode program data. Might not be our event.`);
+                    console.log(`[DECODE WARN] Failed to decode program data. Might not be our event.`);
                     continue;
                 }
 
                 if (!event) continue;
 
                 const eventName = event.name.toLowerCase();
-                console.log(`\n>>> [EVENT DISPATCH] ✨ Decoded Event: ${event.name} ✨ <<<`);
+                console.log(`\n>>> [EVENT DISPATCH] Decoded Event: ${event.name} <<<`);
 
                 // BULLETPROOF EVENT PROCESSOR: If one fails, the next still runs!
                 try {
@@ -460,21 +457,21 @@ Deno.serve(async (req) => {
                         // Passed signature here to eventually support stronger deduplication
                         await handleTicketClaimed(supabase, event.data, signature);
                     } else {
-                        console.log(`[EVENT WARN] ⚠️ Unknown or unhandled event type: ${event.name}`);
+                        console.log(`[EVENT WARN] Unknown or unhandled event type: ${event.name}`);
                     }
                 } catch (eventProcessingError: any) {
-                    console.error(`\n[CRASH PREVENTED] 💥 Caught error while processing event: ${event.name}`);
+                    console.error(`\n[CRASH PREVENTED] Caught error while processing event: ${event.name}`);
                     console.error(`[CRASH TRACE] Stack Trace:`, eventProcessingError.stack || eventProcessingError.message);
                 }
             }
         }
 
-        console.log(`[WEBHOOK] ✅ All transactions processed successfully.`);
+        console.log(`[WEBHOOK] All transactions processed successfully.`);
         console.log(`======================================================\n`);
         return new Response("Processed successfully", { status: 200 });
 
     } catch (err: any) {
-        console.error(`\n[FATAL WEBHOOK ERROR] ❌ CAUGHT FATAL ERROR:`, err.message);
+        console.error(`\n[FATAL WEBHOOK ERROR] CAUGHT FATAL ERROR:`, err.message);
         console.log(`======================================================\n`);
         return new Response(`Error caught: ${err.message}`, { status: 200 });
     }

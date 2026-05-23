@@ -26,7 +26,7 @@ export const PulsuatingCountDown = () => {
             const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
             const formattedSeconds = seconds < 10 ? `0${seconds}` : seconds;
 
-            // CHANGED: Use lowercase letters and colons
+            // Use lowercase letters and colons
             setCountdown(`${hours}h:${formattedMinutes}m:${formattedSeconds}s`);
         };
 
@@ -44,7 +44,6 @@ export const PulsuatingCountDown = () => {
                 DRAWING IN:
             </span>
 
-            {/* CHANGED: Removed the 'uppercase' class from this span */}
             <span className="ml-1.5 text-purple-400 drop-shadow-[0_0_10px_rgba(168,85,247,0.8)] text-[10px] md:text-[12px] font-black leading-none tabular-nums">
                 {countdown}
             </span>

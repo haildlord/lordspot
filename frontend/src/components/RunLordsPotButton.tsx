@@ -59,7 +59,7 @@ export const RunLordsPotButton = () => {
         setCrankState('running');
 
         try {
-            console.log("🚀 Frontend calling Relayer at:", render_post_server_link);
+            console.log("Frontend calling Relayer at:", render_post_server_link);
 
             const response = await fetch(`${render_post_server_link}/crank`, {
                 method: 'POST',
@@ -81,13 +81,13 @@ export const RunLordsPotButton = () => {
 
             // [NEW ARCHITECTURE]: Handle graceful bounce if another PC is doing the work
             if (data.message === "Crank in progress." || data.message === "Cooldown active.") {
-                console.log(`🛡️ Relayer response: ${data.message} Another user is cranking. Waiting for WebSocket sync.`);
+                console.log(`Relayer response: ${data.message} Another user is cranking. Waiting for WebSocket sync.`);
                 setCrankState('idle');
                 isCranking.current = false;
                 return; // Exit silently, let Supabase update the UI when the other PC finishes
             }
 
-            console.log("✅ Success! LordsPot Run Complete. Sig:", data.txSignature);
+            console.log("Success! LordsPot Run Complete. Sig:", data.txSignature);
             setCrankState('success');
             refreshVaultData();
 
@@ -98,7 +98,7 @@ export const RunLordsPotButton = () => {
             }, 3000);
 
         } catch (error: any) {
-            console.error("❌ Crank Failed:", error);
+            console.error("Crank Failed:", error);
             setErrorMessage(error.message || "Transaction failed");
             setCrankState('error');
             setTimeout(() => {
@@ -118,7 +118,7 @@ export const RunLordsPotButton = () => {
 
             // Generate a random delay between 0 and 4 seconds
             const jitterDelayMs = Math.floor(Math.random() * 4000);
-            console.log(`⏳ Applying distributed jitter: Waiting ${jitterDelayMs}ms before triggering auto-crank...`);
+            console.log(`Applying distributed jitter: Waiting ${jitterDelayMs}ms before triggering auto-crank...`);
 
             setTimeout(() => {
                 handleRunLordsPot();
@@ -129,7 +129,6 @@ export const RunLordsPotButton = () => {
     return (
         <div className="w-full flex flex-col items-center">
 
-            {/* OVERLAY LOADER */}
             {crankState !== 'idle' && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in">
                     <div className="w-64 h-64 bg-gradient-to-b from-[#1a1a1a] to-[#0d0d0d] border border-[#D4AF37]/30 rounded-[2rem] shadow-[0_0_40px_rgba(212,175,55,0.15)] flex flex-col items-center justify-center relative overflow-hidden text-center p-4">
@@ -173,7 +172,6 @@ export const RunLordsPotButton = () => {
                 </div>
             )}
 
-            {/* BUTTON ITSELF WITH TIMELOCK */}
             <button
                 onClick={handleRunLordsPot}
                 disabled={!connected || crankState !== 'idle' || isDrawing || !isDrawTimeReached}

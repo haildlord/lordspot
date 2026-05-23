@@ -16,7 +16,6 @@ export interface TrueLpState {
     rawPendingDepositAmount: number;
     rawLastDepositEpoch: number;
 
-    // ADDED: So Anchor can bypass the UI abstraction
     rawPendingWithdrawalShares: number;
 }
 
@@ -90,7 +89,6 @@ export const calculateTrueLpState = async (
         lastDepositEpoch: lastDepositEpoch,
         rawPendingDepositAmount: rawPendingDepositAmount,
         rawLastDepositEpoch: rawLastDepositEpoch,
-        // ADDED: Passed the raw data directly through for Anchor
         rawPendingWithdrawalShares: rawPendingWithdrawalShares,
     };
 };

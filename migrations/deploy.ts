@@ -9,6 +9,7 @@ import {
     getPerEpochStatePda,
     getProtocolUsdcVaultAta, DEVNET_LUSDC_MINT, DEVNET_LORDSPOT_PROGRAMID, DEVNET_LUSDC_PROGRAM_ID
 } from "../tests/utils/seeds_and_ata";
+import sb from "@switchboard-xyz/on-demand";
 
 const secretKeyArray = require('../phantom_buffer.json');
 const phantomSigner = anchor.web3.Keypair.fromSecretKey(new Uint8Array(secretKeyArray));
@@ -57,42 +58,42 @@ module.exports = async function (provider: anchor.AnchorProvider) {
     console.log("Queue Pubkey:", DEVNET_QUEUE_PUBKEY.toBase58());
     console.log("Switchboard Program Pubkey:", DEVNET_SB_PROGRAM_ID.toBase58());
 
-    // try {
-    //   const [randomness, ix] = await sb.Randomness.create(
-    //       sbProgram as any,
-    //       rngKp,
-    //       DEVNET_QUEUE_PUBKEY,
-    //       rngAuthorityKp.publicKey
-    //   );
-    //
-    //   const createRandomnessTx = await sb.asV0Tx({
-    //     connection: provider.connection, // Back to local!
-    //     ixs: [ix],
-    //     payer: rngAuthorityKp.publicKey, // Paid by the 2 SOL in real Devnet
-    //     signers: [rngKp, rngAuthorityKp],
-    //     computeUnitPrice: 75_000,
-    //     computeUnitLimitMultiple: 1.3,
-    //   });
-    //
-    //   const sig1 = await provider.connection.sendTransaction(createRandomnessTx, {
-    //     skipPreflight: false,
-    //   });
-    //
-    //   const latestBlockhash = await provider.connection.getLatestBlockhash();
-    //   await provider.connection.confirmTransaction({
-    //     signature: sig1,
-    //     blockhash: latestBlockhash.blockhash,
-    //     lastValidBlockHeight: latestBlockhash.lastValidBlockHeight
-    //   }, "confirmed");
-    //
-    //   console.log("Switchboard Randomness Account Created Locally! Tx:", sig1);
-    //
-    // } catch (e) {
-    //   console.error("\nCRITICAL FAILURE: Could not create Switchboard Randomness Account!");
-    //   console.error(e);
-    //   // Stop the deployment immediately so we don't deploy a broken protocol
-    //   process.exit(1);
-    // }
+    try {
+      const [randomness, ix] = await sb.Randomness.create(
+          sbProgram as any,
+          rngKp,
+          DEVNET_QUEUE_PUBKEY,
+          rngAuthorityKp.publicKey
+      );
+
+      const createRandomnessTx = await sb.asV0Tx({
+        connection: provider.connection, // Back to local!
+        ixs: [ix],
+        payer: rngAuthorityKp.publicKey, // Paid by the 2 SOL in real Devnet
+        signers: [rngKp, rngAuthorityKp],
+        computeUnitPrice: 75_000,
+        computeUnitLimitMultiple: 1.3,
+      });
+
+      const sig1 = await provider.connection.sendTransaction(createRandomnessTx, {
+        skipPreflight: false,
+      });
+
+      const latestBlockhash = await provider.connection.getLatestBlockhash();
+      await provider.connection.confirmTransaction({
+        signature: sig1,
+        blockhash: latestBlockhash.blockhash,
+        lastValidBlockHeight: latestBlockhash.lastValidBlockHeight
+      }, "confirmed");
+
+      console.log("Switchboard Randomness Account Created Locally! Tx:", sig1);
+
+    } catch (e) {
+      console.error("\nCRITICAL FAILURE: Could not create Switchboard Randomness Account!");
+      console.error(e);
+      // Stop the deployment immediately so we don't deploy a broken protocol
+      process.exit(1);
+    }
 
     // ============================================================================
     // STEP 2: INITIALIZE LORDSPOT
